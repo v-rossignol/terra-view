@@ -1,98 +1,98 @@
 # AGENTS.md
 
-> Guide pour les agents IA travaillant sur Terra View
+> Guide for AI agents working on Terra View
 
-## Description du projet
+## Project Description
 
-Terra View est un client de visualisation 2D de surfaces planetaires pour le projet Infinity. Il permet d afficher et d interagir avec des cartes planetaires en 2D.
+Terra View is a 2D planetary surface visualization client for the Infinity project. It allows displaying and interacting with 2D planetary maps.
 
-## Stack technique
+## Technical Stack
 
-| Technologie | Version | Role |
+| Technology | Version | Role |
 |-------------|---------|------|
-| React | 18.2.0 | Framework frontend |
-| PixiJS | 7.3.2 | Rendering 2D pour les cartes planetaires |
-| TypeScript | 5.3.3 | Typage statique |
-| Vite | 5.0.8 | Bundler et serveur de developpement |
-| Zustand | 4.4.7 | Gestion d etat |
-| Axios | 1.6.2 | Client HTTP pour les requetes API |
+| React | 18.2.0 | Frontend framework |
+| PixiJS | 7.3.2 | 2D rendering for planetary maps |
+| TypeScript | 5.3.3 | Static typing |
+| Vite | 5.0.8 | Bundler and development server |
+| Zustand | 4.4.7 | State management |
+| Axios | 1.6.2 | HTTP client for API requests |
 
-## Structure du projet
+## Project Structure
 
 ```
 terra-view/
 ├── src/
-│   ├── assets/           # Ressources statiques
-│   ├── components/      # Composants React
-│   ├── hooks/           # Hooks personnalises
-│   ├── stores/          # Stores Zustand
-│   ├── types/           # Definitions de types TypeScript
-│   ├── utils/           # Fonctions utilitaires
-│   ├── App.tsx          # Composant principal
-│   └── main.tsx         # Point d entree
-├── index.html           # Template HTML
-├── package.json         # Dependances et scripts
-├── tsconfig.json        # Configuration TypeScript
-├── tsconfig.node.json   # Configuration TypeScript pour Node
-└── vite.config.ts       # Configuration Vite
+│   ├── assets/           # Static resources
+│   ├── components/      # React components
+│   ├── hooks/           # Custom hooks
+│   ├── stores/          # Zustand stores
+│   ├── types/           # TypeScript type definitions
+│   ├── utils/           # Utility functions
+│   ├── App.tsx          # Main component
+│   └── main.tsx         # Entry point
+├── index.html           # HTML template
+├── package.json         # Dependencies and scripts
+├── tsconfig.json        # TypeScript configuration
+├── tsconfig.node.json   # TypeScript configuration for Node
+└── vite.config.ts       # Vite configuration
 ```
 
-## Scripts disponibles
+## Available Scripts
 
-| Commande | Description |
-|----------|-------------|
-| npm run dev | Lance le serveur de developpement (Vite) |
-| npm run build | Construit le projet pour la production |
-| npm run lint | Execute ESLint sur le code |
-| npm run preview | Previsualise le build de production |
+| Command | Description |
+|---------|-------------|
+| npm run dev | Start development server (Vite) |
+| npm run build | Build project for production |
+| npm run lint | Run ESLint on the code |
+| npm run preview | Preview production build |
 
-## Conventions de code
+## Coding Conventions
 
 ### TypeScript
-- Utiliser des interfaces pour les types d objets
-- Privilégier les types explicites pour les props de composants
-- Utiliser unknown plutôt que any lorsque le type est incertain
-- Marquer les fonctions async avec Promise<T> pour le retour
+- Use interfaces for object types
+- Prefer explicit types for component props
+- Use unknown instead of any when type is uncertain
+- Mark async functions with Promise<T> for return type
 
 ### React
-- Composants en PascalCase
-- Props en camelCase
-- Utiliser des hooks personnalisés dans src/hooks/
-- Gestion d état via Zustand (stores dans src/stores/)
+- Components in PascalCase
+- Props in camelCase
+- Use custom hooks in src/hooks/
+- State management via Zustand (stores in src/stores/)
 
 ### PixiJS
-- Les sprites et conteneurs doivent être nettoyés dans useEffect cleanup
-- Utiliser PIXI.Assets.load() pour le chargement des assets
-- Les textures doivent être gérées via le cache de PixiJS
+- Sprites and containers must be cleaned up in useEffect cleanup
+- Use PIXI.Assets.load() for asset loading
+- Textures should be managed via PixiJS cache
 
-### Organisation des fichiers
-- Un fichier = un composant/hook/store/type
-- Les tests unitaires dans __tests__/ à côté du fichier testé
-- Les styles CSS-in-JS ou modules CSS selon besoin
+### File Organization
+- One file = one component/hook/store/type
+- Unit tests in __tests__/ next to the tested file
+- Styles: CSS-in-JS or CSS modules as needed
 
-## Points d attention
+## Important Considerations
 
-1. Performance: Les rendus PixiJS peuvent être coûteux. Toujours:
-   - Limiter le nombre de sprites actifs
-   - Utiliser PIXI.BatchRenderer pour les éléments statiques
-   - Nettoyer les ressources non utilisées
+1. Performance: PixiJS rendering can be expensive. Always:
+   - Limit the number of active sprites
+   - Use PIXI.BatchRenderer for static elements
+   - Clean up unused resources
 
-2. Gestion mémoire:
-   - Désabonner les event listeners
-   - Nettoyer les textures PixiJS dans useEffect cleanup
-   - Éviter les fuites mémoire avec les observables
+2. Memory Management:
+   - Unsubscribe event listeners
+   - Clean up PixiJS textures in useEffect cleanup
+   - Avoid memory leaks with observables
 
-3. API Infinity:
-   - Base URL: À définir (variable d environnement VITE_INFINITY_API_URL)
-   - Authentification: Bearer token via VITE_INFINITY_API_TOKEN
-   - Les endpoints sont documentés dans le backend Infinity
+3. Infinity API:
+   - Base URL: To be defined (environment variable VITE_INFINITY_API_URL)
+   - Authentication: Bearer token via VITE_INFINITY_API_TOKEN
+   - Endpoints are documented in the Infinity backend
 
 4. Coordinate System:
-   - Le système utilise des coordonnées planétaires (latitude/longitude)
-   - Conversion nécessaire entre coordonnées géographiques et pixels
-   - Projection: Mercator ou équivalente pour les planètes
+   - The system uses planetary coordinates (latitude/longitude)
+   - Conversion needed between geographic coordinates and pixels
+   - Projection: Mercator or equivalent for planets
 
-## Variables d environnement
+## Environment Variables
 
 ```env
 VITE_INFINITY_API_URL=https://api.infinity.example.com
@@ -100,34 +100,34 @@ VITE_INFINITY_API_TOKEN=your_token_here
 VITE_DEBUG_MODE=true
 ```
 
-## Bonnes pratiques pour les agents IA
+## Best Practices for AI Agents
 
-### Quand travailler sur ce projet:
-1. Lire d abord: Consulter le README.md et ce fichier AGENTS.md
-2. Analyser le code existant: Comprendre la structure avant de modifier
-3. Respecter les conventions: Suivre les patterns etablis
-4. Documenter: Ajouter des commentaires pour le code complexe
-5. Tester: Verifier que les modifications ne cassent pas le build
+### When working on this project:
+1. Read first: Consult README.md and this AGENTS.md file
+2. Analyze existing code: Understand the structure before modifying
+3. Follow conventions: Adhere to established patterns
+4. Document: Add comments for complex code
+5. Test: Ensure modifications do not break the build
 
-### Taches courantes:
-- Ajouter un composant: Creer dans src/components/ avec Storybook si applicable
-- Ajouter un store: Creer dans src/stores/ et l importer dans le composant
-- Ajouter un type: Definir dans src/types/ et l exporter
-- Modifier la config: Mettre à jour vite.config.ts ou tsconfig.json
+### Common Tasks:
+- Add a component: Create in src/components/ with Storybook if applicable
+- Add a store: Create in src/stores/ and import in the component
+- Add a type: Define in src/types/ and export it
+- Modify config: Update vite.config.ts or tsconfig.json
 
-### A eviter:
-- Modifier directement node_modules/
-- Commiter des fichiers generes (build/, dist/)
-- Utiliser any dans les types
-- Laisser du code commente inutilise
+### Avoid:
+- Directly modifying node_modules/
+- Committing generated files (build/, dist/)
+- Using any in types
+- Leaving unused commented code
 
-## Ressources utiles
+## Useful Resources
 
-- Documentation PixiJS: https://pixijs.com/docs/
-- Documentation React: https://react.dev/reference
-- Documentation Zustand: https://docs.pmnd.rs/zustand/getting-started/introduction
-- Documentation Vite: https://vitejs.dev/guide/
+- PixiJS Documentation: https://pixijs.com/docs/
+- React Documentation: https://react.dev/reference
+- Zustand Documentation: https://docs.pmnd.rs/zustand/getting-started/introduction
+- Vite Documentation: https://vitejs.dev/guide/
 
 ## Contact
 
-Pour les questions spécifiques au projet Infinity, contacter l équipe backend ou consulter la documentation interne.
+For Infinity project specific questions, contact the backend team or consult internal documentation.
