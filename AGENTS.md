@@ -12,11 +12,12 @@
 npm install          # Install dependencies
 npm run dev          # Dev server → http://localhost:3000/terra-view/
 npm run build        # Type-check (tsc) + production build → dist/
+npm run test         # Unit tests (Vitest)
 npm run preview      # Preview production build
 npm run lint         # ESLint on .ts / .tsx
 ```
 
-No test runner is configured yet. After changes, run `npm run build` and `npm run lint`.
+After changes, run `npm run build` and `npm run test`.
 
 **Local dev:** Start databases and the Infinity server first (see root [AGENTS.md](../AGENTS.md)). Vite proxies `/infinity/*` to `http://localhost:4000`. Optional: Caddy on port 80 for same-origin routing at `http://localhost/terra-view/` or `http://infinity-dev.home.rh/terra-view/`.
 
