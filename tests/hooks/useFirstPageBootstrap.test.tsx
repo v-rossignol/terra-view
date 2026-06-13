@@ -80,12 +80,18 @@ describe('useFirstPageBootstrap', () => {
       expect(result.current.status).toBe('ready');
     });
 
-    expect(result.current).toEqual({
-      status: 'ready',
-      playerName: 'pilot42',
-      planetName: 'Planet 1',
-      error: null,
+    expect(result.current.status).toBe('ready');
+    expect(result.current.playerName).toBe('pilot42');
+    expect(result.current.planetName).toBe('Planet 1');
+    expect(result.current.planet).toEqual({
+      _id: 'planet-1',
+      name: 'Planet 1',
+      starSystemId: 'system-1',
+      type: 'rocky',
+      radius: 5,
     });
+    expect(result.current.playerHex).toEqual({ q: 1, r: 2 });
+    expect(result.current.error).toBeNull();
   });
 
   it('returns an auth error when the session is missing', async () => {

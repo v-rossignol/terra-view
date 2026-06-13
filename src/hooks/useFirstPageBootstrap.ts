@@ -3,6 +3,7 @@ import axios from 'axios';
 import { authService } from '../services/authService';
 import { playerService } from '../services/playerService';
 import { planetService } from '../services/planetService';
+import type { HexCoords, Planet } from '../types/planet';
 import { getErrorMessage } from '../utils/helpers';
 import { isPlayerOnPlanet } from '../utils/playerLocation';
 
@@ -12,6 +13,8 @@ export interface FirstPageState {
   status: FirstPageStatus;
   playerName: string | null;
   planetName: string | null;
+  planet: Planet | null;
+  playerHex: HexCoords | null;
   error: string | null;
 }
 
@@ -22,6 +25,8 @@ export const useFirstPageBootstrap = (): FirstPageState => {
     status: 'loading',
     playerName: null,
     planetName: null,
+    planet: null,
+    playerHex: null,
     error: null,
   });
 
@@ -45,6 +50,8 @@ export const useFirstPageBootstrap = (): FirstPageState => {
             status: 'error',
             playerName: null,
             planetName: null,
+            planet: null,
+            playerHex: null,
             error: 'No player profile found. Enter the game from Stellar Gate first.',
           });
           return;
@@ -55,6 +62,8 @@ export const useFirstPageBootstrap = (): FirstPageState => {
             status: 'error',
             playerName: user.username,
             planetName: null,
+            planet: null,
+            playerHex: null,
             error:
               'Your player is not on a planet surface. Travel to a planet before opening Terra View.',
           });
@@ -70,6 +79,8 @@ export const useFirstPageBootstrap = (): FirstPageState => {
           status: 'ready',
           playerName: user.username,
           planetName: planet.name,
+          planet,
+          playerHex: player.location.planet.hex_coords,
           error: null,
         });
       } catch (error) {
@@ -82,6 +93,8 @@ export const useFirstPageBootstrap = (): FirstPageState => {
             status: 'error',
             playerName: null,
             planetName: null,
+            planet: null,
+            playerHex: null,
             error: `You are not signed in. Log in via Stellar Gate (${LOGIN_PATH}).`,
           });
           return;
@@ -91,6 +104,8 @@ export const useFirstPageBootstrap = (): FirstPageState => {
           status: 'error',
           playerName: null,
           planetName: null,
+          planet: null,
+          playerHex: null,
           error: getErrorMessage(error, 'Failed to load player or planet data.'),
         });
       }

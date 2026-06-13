@@ -1,0 +1,61 @@
+.hex-grid-viewport {
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  --hex-scale: 1;
+}
+
+.hex-grid {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.hex-grid__cell {
+  position: absolute;
+  box-sizing: border-box;
+  width: var(--hex-width);
+  height: var(--hex-height);
+  clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: default;
+  user-select: none;
+  border: 1px solid rgba(0, 0, 0, 0.25);
+}
+
+.hex-grid__label {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.1rem;
+  padding: 0 0.15rem;
+  text-align: center;
+  line-height: 1.1;
+  pointer-events: none;
+}
+
+.hex-grid__coords {
+  color: rgba(255, 255, 255, 0.95);
+  font-size: calc(0.6rem * var(--hex-scale));
+  font-weight: 600;
+  font-family: ui-monospace, monospace;
+}
+
+.hex-grid__biome {
+  color: rgba(255, 255, 255, 0.8);
+  font-size: calc(0.55rem * var(--hex-scale));
+  font-family: system-ui, sans-serif;
+  text-transform: capitalize;
+}
+
+.hex-grid__cell--player {
+  outline: 2px solid #ffd54f;
+  outline-offset: -2px;
+  z-index: 1;
+}

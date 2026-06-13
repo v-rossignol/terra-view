@@ -1,10 +1,12 @@
 import { useFirstPageBootstrap } from '../hooks/useFirstPageBootstrap';
+import { HexGrid } from './game/HexGrid';
 import { ClientHeader } from './ui/ClientHeader';
 
 const layoutStyle: React.CSSProperties = {
-  minHeight: '100vh',
+  height: '100dvh',
   display: 'flex',
   flexDirection: 'column',
+  overflow: 'hidden',
   fontFamily: 'system-ui, sans-serif',
   backgroundColor: '#0f0f0f',
   color: '#f0f0f0',
@@ -14,10 +16,21 @@ const contentStyle: React.CSSProperties = {
   flex: 1,
   display: 'flex',
   flexDirection: 'column',
+  alignItems: 'stretch',
+  minHeight: 0,
+  width: '100%',
+  overflow: 'hidden',
+};
+
+const centeredContentStyle: React.CSSProperties = {
+  flex: 1,
+  display: 'flex',
+  flexDirection: 'column',
   alignItems: 'center',
   justifyContent: 'center',
-  padding: '2rem',
   gap: '1rem',
+  padding: '1rem',
+  overflow: 'auto',
 };
 
 const errorStyle: React.CSSProperties = {
@@ -27,12 +40,12 @@ const errorStyle: React.CSSProperties = {
 };
 
 export function FirstPage() {
-  const { status, playerName, planetName, error } = useFirstPageBootstrap();
+  const { status, playerName, planetName, planet, playerHex, error } = useFirstPageBootstrap();
 
   return (
     <div style={layoutStyle}>
       <ClientHeader playerName={playerName} planetName={planetName} status={status} />
-      <main style={contentStyle}>
+      <main style={status === 'ready' ? contentStyle : centeredContentStyle}>
         {status === 'loading' && <p style={{ color: '#9a9a9a' }}>Connecting…</p>}
 
         {status === 'error' && (
@@ -46,6 +59,14 @@ export function FirstPage() {
               </a>
             </p>
           </>
+        )}
+
+        {status === 'ready' && planet != null && (
+          <HexGrid
+            radius={planet.radius}
+            hexagons={planet.surface?.hexagons}
+            playerHex={playerHex ?? undefined}
+          />
         )}
       </main>
     </div>
