@@ -1,133 +1,175 @@
-# AGENTS.md
+# AGENTS.md — Terra View
 
-> Guide for AI agents working on Terra View
+2D planetary surface visualization client for **Infinity** (hex map, biomes, resources, multiplayer sync). React 18 + TypeScript + Vite SPA with **PixiJS 7** for map rendering.
 
-## Project Description
+**Monorepo context:** [../AGENTS.md](../AGENTS.md) · **Known gaps:** [../documentation/TO-BE-FIXED.md](../documentation/TO-BE-FIXED.md)
 
-Terra View is a 2D planetary surface visualization client for the Infinity project. It allows displaying and interacting with 2D planetary maps.
+---
 
-## Technical Stack
+## Commands
 
-| Technology | Version | Role |
-|-------------|---------|------|
-| React | 18.2.0 | Frontend framework |
-| PixiJS | 7.3.2 | 2D rendering for planetary maps |
-| TypeScript | 5.3.3 | Static typing |
-| Vite | 5.0.8 | Bundler and development server |
-| Zustand | 4.4.7 | State management |
-| Axios | 1.6.2 | HTTP client for API requests |
-
-## Project Structure
-
-```
-terra-view/
-├── src/
-│   ├── assets/           # Static resources
-│   ├── components/      # React components
-│   ├── hooks/           # Custom hooks
-│   ├── stores/          # Zustand stores
-│   ├── types/           # TypeScript type definitions
-│   ├── utils/           # Utility functions
-│   ├── App.tsx          # Main component
-│   └── main.tsx         # Entry point
-├── index.html           # HTML template
-├── package.json         # Dependencies and scripts
-├── tsconfig.json        # TypeScript configuration
-├── tsconfig.node.json   # TypeScript configuration for Node
-└── vite.config.ts       # Vite configuration
+```bash
+npm install          # Install dependencies
+npm run dev          # Dev server → http://localhost:3000/terra-view/
+npm run build        # Type-check (tsc) + production build → dist/
+npm run preview      # Preview production build
+npm run lint         # ESLint on .ts / .tsx
 ```
 
-## Available Scripts
+No test runner is configured yet. After changes, run `npm run build` and `npm run lint`.
 
-| Command | Description |
-|---------|-------------|
-| npm run dev | Start development server (Vite) |
-| npm run build | Build project for production |
-| npm run lint | Run ESLint on the code |
-| npm run preview | Preview production build |
+**Local dev:** Start databases and the Infinity server first (see root [AGENTS.md](../AGENTS.md)). Vite proxies `/infinity/*` to `http://localhost:4000`. Optional: Caddy on port 80 for same-origin routing at `http://localhost/terra-view/` or `http://infinity-dev.home.rh/terra-view/`.
 
-## Coding Conventions
+| Field | Value |
+|-------|-------|
+| Dev port | `3000` |
+| Base path | `/terra-view/` |
+| API prefix | `/infinity/*` (REST + Socket.IO planned) |
 
-### TypeScript
-- Use interfaces for object types
-- Prefer explicit types for component props
-- Use unknown instead of any when type is uncertain
-- Mark async functions with Promise<T> for return type
+---
 
-### React
-- Components in PascalCase
-- Props in camelCase
-- Use custom hooks in src/hooks/
-- State management via Zustand (stores in src/stores/)
+## Project structure
 
-### PixiJS
-- Sprites and containers must be cleaned up in useEffect cleanup
-- Use PIXI.Assets.load() for asset loading
-- Textures should be managed via PixiJS cache
+Current scaffold (early stage):
 
-### File Organization
-- One file = one component/hook/store/type
-- Unit tests in __tests__/ next to the tested file
-- Styles: CSS-in-JS or CSS modules as needed
-
-## Important Considerations
-
-1. Performance: PixiJS rendering can be expensive. Always:
-   - Limit the number of active sprites
-   - Use PIXI.BatchRenderer for static elements
-   - Clean up unused resources
-
-2. Memory Management:
-   - Unsubscribe event listeners
-   - Clean up PixiJS textures in useEffect cleanup
-   - Avoid memory leaks with observables
-
-3. Infinity API:
-   - Base URL: To be defined (environment variable VITE_INFINITY_API_URL)
-   - Authentication: Bearer token via VITE_INFINITY_API_TOKEN
-   - Endpoints are documented in the Infinity backend
-
-4. Coordinate System:
-   - The system uses planetary coordinates (latitude/longitude)
-   - Conversion needed between geographic coordinates and pixels
-   - Projection: Mercator or equivalent for planets
-
-## Environment Variables
-
-```env
-VITE_INFINITY_API_URL=https://api.infinity.example.com
-VITE_INFINITY_API_TOKEN=your_token_here
-VITE_DEBUG_MODE=true
+```
+src/
+├── App.tsx              # Root component (placeholder)
+├── main.tsx             # React entry point
+└── vite-env.d.ts
+index.html
+vite.config.ts           # base: /terra-view/, dev proxy to :4000
 ```
 
-## Best Practices for AI Agents
+Target layout (from [../documentation/terra-view/terra-view-setup.md](../documentation/terra-view/terra-view-setup.md)):
 
-### When working on this project:
-1. Read first: Consult README.md and this AGENTS.md file
-2. Analyze existing code: Understand the structure before modifying
-3. Follow conventions: Adhere to established patterns
-4. Document: Add comments for complex code
-5. Test: Ensure modifications do not break the build
+```
+src/
+├── assets/              # Static resources, tilesets, sprites
+├── components/          # React UI + PixiJS canvas wrappers
+│   ├── ui/              # HUD, menus, inventory
+│   └── game/            # PlanetMap, Player, Resource
+├── hooks/               # useSocket, usePlanetMap, etc.
+├── stores/              # Zustand (gameStore, uiStore)
+├── types/               # game, socket, API types
+├── utils/               # Coordinate math, helpers
+├── App.tsx
+└── main.tsx
+```
 
-### Common Tasks:
-- Add a component: Create in src/components/ with Storybook if applicable
-- Add a store: Create in src/stores/ and import in the component
-- Add a type: Define in src/types/ and export it
-- Modify config: Update vite.config.ts or tsconfig.json
+---
 
-### Avoid:
-- Directly modifying node_modules/
-- Committing generated files (build/, dist/)
-- Using any in types
-- Leaving unused commented code
+## Implementation status
 
-## Useful Resources
+| Area | Client | Server |
+|------|--------|--------|
+| App scaffold | React + Vite placeholder | — |
+| PixiJS map rendering | Not started | — |
+| Planet data fetch | Not started | `GET /infinity/planets/:planetId` |
+| Resources | Not started | `GET /infinity/resources/planet/:planetId` |
+| Real-time sync | Not started | Socket.IO `PLANET_JOIN`, `PLANET_MOVE` |
+| Auth / session | Not started | Cookie-based (`infinity_token`) — see [../infinity/documentation/auth.md](../infinity/documentation/auth.md) |
+| Upstream navigation | Planned from `/solaris/` | Galaxy View and Solar System View not in repo yet |
 
-- PixiJS Documentation: https://pixijs.com/docs/
-- React Documentation: https://react.dev/reference
-- Zustand Documentation: https://docs.pmnd.rs/zustand/getting-started/introduction
-- Vite Documentation: https://vitejs.dev/guide/
+Planet domain model: hexagonal toroidal surface — see [../infinity/documentation/objects/planet.md](../infinity/documentation/objects/planet.md) and [../infinity/documentation/planets/hexagonal-planet-specification.md](../infinity/documentation/planets/hexagonal-planet-specification.md).
 
-## Contact
+---
 
-For Infinity project specific questions, contact the backend team or consult internal documentation.
+## Architecture rules
+
+### Rendering (PixiJS + React)
+
+- Mount PixiJS in a dedicated React component; destroy the application and release textures in `useEffect` cleanup.
+- Load assets via `PIXI.Assets.load()`; avoid leaking textures or event listeners.
+- Keep React for UI overlays (HUD, menus); keep the map in PixiJS for performance.
+- Limit active sprites; prefer batching for static tiles.
+
+### Coordinates
+
+- Server uses a **hexagonal grid** (`q`/`r` or `planetX`/`planetY`) on a toroidal surface — not latitude/longitude.
+- Client must convert between hex coordinates and screen pixels; follow [../infinity/documentation/planets/hexagonal-planet-specification.md](../infinity/documentation/planets/hexagonal-planet-specification.md).
+
+### API and real-time
+
+- REST base path: `/infinity/*` (Vite dev proxy forwards to `:4000`).
+- Use `withCredentials: true` on HTTP clients when auth cookies are required.
+- Do **not** store JWT in `localStorage`, `sessionStorage`, or JS state.
+- Socket.IO client integration is planned; event names and payloads follow server gateway conventions.
+
+### Layering
+
+| Layer | Responsibility |
+| ----- | -------------- |
+| `components/ui/` | React UI only |
+| `components/game/` | PixiJS canvas + thin React wrapper |
+| `stores/` | Game and UI state |
+| `hooks/` | Socket, map lifecycle, coordinate helpers |
+| `utils/` | Pure functions (hex math, projections) |
+
+---
+
+## Document conventions
+
+Shared monorepo standards: [../rules/documents.md](../rules/documents.md).
+
+Setup guide [../documentation/terra-view/terra-view-setup.md](../documentation/terra-view/terra-view-setup.md) is in **French**; code, paths, and API identifiers stay in **English**. Do not create documentation files unless explicitly requested.
+
+---
+
+## Code style
+
+- TypeScript strict mode — no `any` unless unavoidable; prefer explicit interfaces in `src/types/`.
+- Functional components and hooks only.
+- Keep diffs minimal; match existing patterns before introducing new abstractions.
+- UI copy and code identifiers are in **English**.
+
+---
+
+## API contract
+
+Canonical server reference: [../infinity/documentation/infinity-api.md](../infinity/documentation/infinity-api.md).
+
+| Method | Route | Auth | Description |
+| ------ | ----- | ---- | ----------- |
+| GET | `/infinity/planets/:planetId` | Public | Get or generate a planet |
+| GET | `/infinity/resources/planet/:planetId` | Public | List resources on a planet |
+| POST | `/infinity/players/me/enter-game` | JWT | Bootstrap first planet spawn |
+
+Real-time: `PLANET_JOIN`, `PLANET_MOVE` — see server socket gateway and [../infinity/documentation/first-planet/first-planet-specifications.md](../infinity/documentation/first-planet/first-planet-specifications.md).
+
+When adding API or socket usage, define types in `src/types/` aligned with server responses.
+
+---
+
+## Do not touch
+
+| Path | Reason |
+| ---- | ------ |
+| `dist/` | Generated build output |
+| `node_modules/` | Dependencies |
+| `package-lock.json` | Only change when adding/removing dependencies |
+
+Do not commit secrets (`.env`, credentials). Do not create git commits unless explicitly asked.
+
+---
+
+## Reference docs
+
+- [../documentation/terra-view/terra-view-setup.md](../documentation/terra-view/terra-view-setup.md) — Stack, structure, and setup (French)
+- [../documentation/architecture/3clients-analysis.md](../documentation/architecture/3clients-analysis.md) — Three game clients analysis
+- [../infinity/documentation/infinity-api.md](../infinity/documentation/infinity-api.md) — Server API overview
+- [../infinity/documentation/objects/planet.md](../infinity/documentation/objects/planet.md) — Planet domain object
+- [../infinity/documentation/planets/hexagonal-planet-specification.md](../infinity/documentation/planets/hexagonal-planet-specification.md) — Hex surface spec
+- [../infinity/documentation/first-planet/first-planet-specifications.md](../infinity/documentation/first-planet/first-planet-specifications.md) — First playable planet flow
+- [../documentation/TO-BE-FIXED.md](../documentation/TO-BE-FIXED.md) — Cross-project deferred fixes
+- [README.md](README.md) — Quick start
+
+---
+
+## Definition of done
+
+1. `npm run build` passes with no TypeScript errors.
+2. `npm run lint` passes (or no new lint issues in touched files).
+3. PixiJS resources are cleaned up on unmount — no texture or listener leaks.
+4. Hex coordinate conversions match server specs — no ad-hoc Mercator/lat-lng assumptions.
+5. New API or socket usage matches [../infinity/documentation/infinity-api.md](../infinity/documentation/infinity-api.md).
