@@ -22,7 +22,8 @@ export interface HexGridProps {
 
 function buildFallbackHexagons(radius: number): PlanetHexagon[] {
   const hexes: PlanetHexagon[] = [];
-  for (let r = 0; r < radius; r += 1) {
+  const height = radius + 1;
+  for (let r = 0; r < height; r += 1) {
     for (let q = 0; q < radius; q += 1) {
       hexes.push({
         biome: 'forest',

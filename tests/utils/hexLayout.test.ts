@@ -29,10 +29,10 @@ describe('hexLayout', () => {
     );
   });
 
-  it('computes container bounds for a square grid', () => {
-    const size = 5;
-    const { width, height } = getGridPixelSize(size, DEFAULT_HEX_LAYOUT);
-    const last = axialToScreen(size - 1, size - 1, DEFAULT_HEX_LAYOUT);
+  it('computes container bounds for a toroidal grid with an extra row', () => {
+    const radius = 5;
+    const { width, height } = getGridPixelSize(radius, DEFAULT_HEX_LAYOUT);
+    const last = axialToScreen(radius - 1, radius, DEFAULT_HEX_LAYOUT);
 
     expect(height).toBe(last.y + DEFAULT_HEX_LAYOUT.hexHeight);
     expect(width).toBeGreaterThanOrEqual(last.x + DEFAULT_HEX_LAYOUT.hexWidth);

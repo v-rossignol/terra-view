@@ -42,7 +42,7 @@ index.html
 vite.config.ts           # base: /terra-view/, dev proxy to :4000
 ```
 
-Target layout (from [../documentation/terra-view/terra-view-setup.md](../documentation/terra-view/terra-view-setup.md)):
+target stage:
 
 ```
 src/
@@ -69,10 +69,10 @@ src/
 | Planet data fetch | Not started | `GET /infinity/planets/:planetId` |
 | Resources | Not started | `GET /infinity/resources/planet/:planetId` |
 | Real-time sync | Not started | Socket.IO `PLANET_JOIN`, `PLANET_MOVE` |
-| Auth / session | Not started | Cookie-based (`infinity_token`) — see [../infinity/documentation/auth.md](../infinity/documentation/auth.md) |
+| Auth / session | Not started | Cookie-based (`infinity_token`) — see [../contracts/auth-api.yaml](../contracts/auth-api.yaml) |
 | Upstream navigation | Planned from `/solaris/` | Galaxy View and Solar System View not in repo yet |
 
-Planet domain model: hexagonal toroidal surface — see [../infinity/documentation/objects/planet.md](../infinity/documentation/objects/planet.md) and [../infinity/documentation/planets/hexagonal-planet-specification.md](../infinity/documentation/planets/hexagonal-planet-specification.md).
+Planet domain model: hexagonal toroidal surface.
 
 ---
 
@@ -88,7 +88,7 @@ Planet domain model: hexagonal toroidal surface — see [../infinity/documentati
 ### Coordinates
 
 - Server uses a **hexagonal grid** (`q`/`r` or `planetX`/`planetY`) on a toroidal surface — not latitude/longitude.
-- Client must convert between hex coordinates and screen pixels; follow [../infinity/documentation/planets/hexagonal-planet-specification.md](../infinity/documentation/planets/hexagonal-planet-specification.md).
+- Client must convert between hex coordinates and screen pixels
 
 ### API and real-time
 
@@ -113,8 +113,6 @@ Planet domain model: hexagonal toroidal surface — see [../infinity/documentati
 
 Shared monorepo standards: [../rules/documents.md](../rules/documents.md).
 
-Setup guide [../documentation/terra-view/terra-view-setup.md](../documentation/terra-view/terra-view-setup.md) is in **French**; code, paths, and API identifiers stay in **English**. Do not create documentation files unless explicitly requested.
-
 ---
 
 ## Code style
@@ -128,7 +126,9 @@ Setup guide [../documentation/terra-view/terra-view-setup.md](../documentation/t
 
 ## API contract
 
-Canonical server reference: [../infinity/documentation/infinity-api.md](../infinity/documentation/infinity-api.md).
+**Terra View integration:** [../contracts/client-terra-view.yaml](../contracts/client-terra-view.yaml) — bootstrap flow, implemented vs planned routes, client service mapping.
+
+Canonical server reference: [../contracts/](../contracts/) — [game-api.yaml](../contracts/game-api.yaml) (REST), [asyncapi.yaml](../contracts/asyncapi.yaml) (Socket.IO), [schemas/](../contracts/schemas/) (JSON Schema DTOs). Auth: [auth-api.yaml](../contracts/auth-api.yaml).
 
 | Method | Route | Auth | Description |
 | ------ | ----- | ---- | ----------- |
@@ -136,9 +136,9 @@ Canonical server reference: [../infinity/documentation/infinity-api.md](../infin
 | GET | `/infinity/resources/planet/:planetId` | Public | List resources on a planet |
 | POST | `/infinity/players/me/enter-game` | JWT | Bootstrap first planet spawn |
 
-Real-time: `PLANET_JOIN`, `PLANET_MOVE` — see server socket gateway and [../infinity/documentation/first-planet/first-planet-specifications.md](../infinity/documentation/first-planet/first-planet-specifications.md).
+Real-time: `PLANET_JOIN`, `PLANET_MOVE` — see [../contracts/asyncapi.yaml](../contracts/asyncapi.yaml).
 
-When adding API or socket usage, define types in `src/types/` aligned with server responses.
+When adding API or socket usage, define types in `src/types/` aligned with [../contracts/schemas/](../contracts/schemas/) response shapes.
 
 ---
 
@@ -156,12 +156,7 @@ Do not commit secrets (`.env`, credentials). Do not create git commits unless ex
 
 ## Reference docs
 
-- [../documentation/terra-view/terra-view-setup.md](../documentation/terra-view/terra-view-setup.md) — Stack, structure, and setup (French)
-- [../documentation/architecture/3clients-analysis.md](../documentation/architecture/3clients-analysis.md) — Three game clients analysis
-- [../infinity/documentation/infinity-api.md](../infinity/documentation/infinity-api.md) — Server API overview
-- [../infinity/documentation/objects/planet.md](../infinity/documentation/objects/planet.md) — Planet domain object
-- [../infinity/documentation/planets/hexagonal-planet-specification.md](../infinity/documentation/planets/hexagonal-planet-specification.md) — Hex surface spec
-- [../infinity/documentation/first-planet/first-planet-specifications.md](../infinity/documentation/first-planet/first-planet-specifications.md) — First playable planet flow
+- [../contracts/client-terra-view.yaml](../contracts/client-terra-view.yaml) — Client API integration contract
 - [../documentation/TO-BE-FIXED.md](../documentation/TO-BE-FIXED.md) — Cross-project deferred fixes
 - [README.md](README.md) — Quick start
 
@@ -173,4 +168,4 @@ Do not commit secrets (`.env`, credentials). Do not create git commits unless ex
 2. `npm run lint` passes (or no new lint issues in touched files).
 3. PixiJS resources are cleaned up on unmount — no texture or listener leaks.
 4. Hex coordinate conversions match server specs — no ad-hoc Mercator/lat-lng assumptions.
-5. New API or socket usage matches [../infinity/documentation/infinity-api.md](../infinity/documentation/infinity-api.md).
+5. New API or socket usage matches [../contracts/](../contracts/) (REST, AsyncAPI, and JSON Schema).

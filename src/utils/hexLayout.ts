@@ -39,27 +39,29 @@ export function axialToScreen(
   };
 }
 
-/** Pixel bounds needed to contain every hex in a size × size grid (accounts for odd-r offset). */
+/** Pixel bounds for a radius × (radius + 1) toroidal hex grid (accounts for odd-r offset). */
 export function getGridPixelSize(
-  size: number,
+  radius: number,
   config: HexLayoutConfig = DEFAULT_HEX_LAYOUT,
 ): GridPixelSize {
-  if (size <= 0) {
+  if (radius <= 0) {
     return { width: 0, height: 0 };
   }
 
-  let width = 0;
-  let height = 0;
+  const width = radius;
+  const height = radius + 1;
+  let pixelWidth = 0;
+  let pixelHeight = 0;
 
-  for (let r = 0; r < size; r += 1) {
-    for (let q = 0; q < size; q += 1) {
+  for (let r = 0; r < height; r += 1) {
+    for (let q = 0; q < width; q += 1) {
       const { x, y } = axialToScreen(q, r, config);
-      width = Math.max(width, x + config.hexWidth);
-      height = Math.max(height, y + config.hexHeight);
+      pixelWidth = Math.max(pixelWidth, x + config.hexWidth);
+      pixelHeight = Math.max(pixelHeight, y + config.hexHeight);
     }
   }
 
-  return { width, height };
+  return { width: pixelWidth, height: pixelHeight };
 }
 
 export function scaleLayoutConfig(
@@ -77,12 +79,12 @@ export const FIT_SCALE_MARGIN = 0.96;
 
 /** Scale a base layout so the full grid fits inside the given bounds. */
 export function fitLayoutToBounds(
-  size: number,
+  radius: number,
   bounds: GridPixelSize,
   baseConfig: HexLayoutConfig = DEFAULT_HEX_LAYOUT,
   padding = 8,
 ): HexLayoutConfig {
-  const natural = getGridPixelSize(size, baseConfig);
+  const natural = getGridPixelSize(radius, baseConfig);
   if (
     natural.width === 0 ||
     natural.height === 0 ||
