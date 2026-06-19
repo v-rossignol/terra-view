@@ -3,6 +3,7 @@ import axios from 'axios';
 import { authService } from '../services/authService';
 import { playerService } from '../services/playerService';
 import { planetService } from '../services/planetService';
+import { starSystemService } from '../services/starSystemService';
 import type { HexCoords, Planet } from '../types/planet';
 import { getErrorMessage } from '../utils/helpers';
 import { isPlayerOnPlanet } from '../utils/playerLocation';
@@ -12,6 +13,8 @@ export type FirstPageStatus = 'loading' | 'ready' | 'error';
 export interface FirstPageState {
   status: FirstPageStatus;
   playerName: string | null;
+  starName: string | null;
+  starSystemHref: string | null;
   planetName: string | null;
   planet: Planet | null;
   playerHex: HexCoords | null;
@@ -24,6 +27,8 @@ export const useFirstPageBootstrap = (): FirstPageState => {
   const [state, setState] = useState<FirstPageState>({
     status: 'loading',
     playerName: null,
+    starName: null,
+    starSystemHref: null,
     planetName: null,
     planet: null,
     playerHex: null,
@@ -49,6 +54,8 @@ export const useFirstPageBootstrap = (): FirstPageState => {
           setState({
             status: 'error',
             playerName: null,
+            starName: null,
+            starSystemHref: null,
             planetName: null,
             planet: null,
             playerHex: null,
@@ -61,6 +68,8 @@ export const useFirstPageBootstrap = (): FirstPageState => {
           setState({
             status: 'error',
             playerName: user.username,
+            starName: null,
+            starSystemHref: null,
             planetName: null,
             planet: null,
             playerHex: null,
@@ -75,9 +84,19 @@ export const useFirstPageBootstrap = (): FirstPageState => {
           return;
         }
 
+        const [starSystem, canEnter] = await Promise.all([
+          starSystemService.getStarSystem(planet.starSystemId),
+          playerService.canEnterStarSystem(planet.starSystemId),
+        ]);
+        if (cancelled) {
+          return;
+        }
+
         setState({
           status: 'ready',
           playerName: user.username,
+          starName: starSystem.name,
+          starSystemHref: canEnter.canEnter ? `/solaris/${planet.starSystemId}` : null,
           planetName: planet.name,
           planet,
           playerHex: player.location.planet.hex_coords,
@@ -92,6 +111,8 @@ export const useFirstPageBootstrap = (): FirstPageState => {
           setState({
             status: 'error',
             playerName: null,
+            starName: null,
+            starSystemHref: null,
             planetName: null,
             planet: null,
             playerHex: null,
@@ -103,6 +124,8 @@ export const useFirstPageBootstrap = (): FirstPageState => {
         setState({
           status: 'error',
           playerName: null,
+          starName: null,
+          starSystemHref: null,
           planetName: null,
           planet: null,
           playerHex: null,

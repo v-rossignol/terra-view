@@ -1,5 +1,7 @@
 interface ClientHeaderProps {
   playerName?: string | null;
+  starName?: string | null;
+  starSystemHref?: string | null;
   planetName?: string | null;
   status?: 'loading' | 'ready' | 'error';
 }
@@ -29,7 +31,18 @@ const separatorStyle: React.CSSProperties = {
   margin: '0 0.75rem',
 };
 
-export function ClientHeader({ playerName, planetName, status = 'ready' }: ClientHeaderProps) {
+const linkStyle: React.CSSProperties = {
+  color: '#7eb8ff',
+  textDecoration: 'none',
+};
+
+export function ClientHeader({
+  playerName,
+  starName,
+  starSystemHref,
+  planetName,
+  status = 'ready',
+}: ClientHeaderProps) {
   const showContext = status === 'ready' && playerName && planetName;
 
   return (
@@ -41,6 +54,23 @@ export function ClientHeader({ playerName, planetName, status = 'ready' }: Clien
             <span style={labelStyle}>Player</span>
             {playerName}
           </span>
+          {starName ? (
+            <>
+              <span style={separatorStyle} aria-hidden="true">
+                ·
+              </span>
+              <span>
+                <span style={labelStyle}>Star</span>
+                {starSystemHref ? (
+                  <a href={starSystemHref} style={linkStyle}>
+                    {starName}
+                  </a>
+                ) : (
+                  starName
+                )}
+              </span>
+            </>
+          ) : null}
           <span style={separatorStyle} aria-hidden="true">
             ·
           </span>

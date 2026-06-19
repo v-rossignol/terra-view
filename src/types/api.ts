@@ -3,3 +3,7 @@ export interface NestJsErrorResponse {
   message: string | string[];
   error?: string;
 }
+
+export interface CanEnterResponse {
+  canEnter: boolean;
+}

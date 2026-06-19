@@ -5,6 +5,7 @@ import { useFirstPageBootstrap } from '@hooks/useFirstPageBootstrap';
 import { authService } from '@services/authService';
 import { playerService } from '@services/playerService';
 import { planetService } from '@services/planetService';
+import { starSystemService } from '@services/starSystemService';
 
 vi.mock('@services/authService', () => ({
   authService: {
@@ -15,6 +16,7 @@ vi.mock('@services/authService', () => ({
 vi.mock('@services/playerService', () => ({
   playerService: {
     enterGame: vi.fn(),
+    canEnterStarSystem: vi.fn(),
   },
 }));
 
@@ -24,9 +26,16 @@ vi.mock('@services/planetService', () => ({
   },
 }));
 
+vi.mock('@services/starSystemService', () => ({
+  starSystemService: {
+    getStarSystem: vi.fn(),
+  },
+}));
+
 const mockedAuth = vi.mocked(authService);
 const mockedPlayer = vi.mocked(playerService);
 const mockedPlanet = vi.mocked(planetService);
+const mockedStarSystem = vi.mocked(starSystemService);
 
 const planetLocation = {
   cube: { id: 'cube-1' },
@@ -73,6 +82,11 @@ describe('useFirstPageBootstrap', () => {
       type: 'rocky',
       radius: 5,
     });
+    mockedStarSystem.getStarSystem.mockResolvedValue({
+      _id: 'system-1',
+      name: 'Alpha Centauri',
+    });
+    mockedPlayer.canEnterStarSystem.mockResolvedValue({ canEnter: true });
 
     const { result } = renderHook(() => useFirstPageBootstrap());
 
@@ -82,6 +96,8 @@ describe('useFirstPageBootstrap', () => {
 
     expect(result.current.status).toBe('ready');
     expect(result.current.playerName).toBe('pilot42');
+    expect(result.current.starName).toBe('Alpha Centauri');
+    expect(result.current.starSystemHref).toBe('/solaris/system-1');
     expect(result.current.planetName).toBe('Planet 1');
     expect(result.current.planet).toEqual({
       _id: 'planet-1',
@@ -92,6 +108,46 @@ describe('useFirstPageBootstrap', () => {
     });
     expect(result.current.playerHex).toEqual({ q: 1, r: 2 });
     expect(result.current.error).toBeNull();
+    expect(mockedStarSystem.getStarSystem).toHaveBeenCalledWith('system-1');
+    expect(mockedPlayer.canEnterStarSystem).toHaveBeenCalledWith('system-1');
+  });
+
+  it('omits the Solaris link when the player cannot enter the star system', async () => {
+    mockedAuth.getCurrentUser.mockResolvedValue({
+      id: 'user-1',
+      username: 'pilot42',
+      email: 'pilot@example.com',
+    });
+    mockedPlayer.enterGame.mockResolvedValue({
+      player: {
+        id: 'player-1',
+        userId: 'user-1',
+        location: planetLocation,
+        createdAt: '2026-06-11T12:00:00.000Z',
+        updatedAt: '2026-06-11T12:05:00.000Z',
+      },
+    });
+    mockedPlanet.getPlanet.mockResolvedValue({
+      _id: 'planet-1',
+      name: 'Planet 1',
+      starSystemId: 'system-1',
+      type: 'rocky',
+      radius: 5,
+    });
+    mockedStarSystem.getStarSystem.mockResolvedValue({
+      _id: 'system-1',
+      name: 'Alpha Centauri',
+    });
+    mockedPlayer.canEnterStarSystem.mockResolvedValue({ canEnter: false });
+
+    const { result } = renderHook(() => useFirstPageBootstrap());
+
+    await waitFor(() => {
+      expect(result.current.status).toBe('ready');
+    });
+
+    expect(result.current.starName).toBe('Alpha Centauri');
+    expect(result.current.starSystemHref).toBeNull();
   });
 
   it('returns an auth error when the session is missing', async () => {

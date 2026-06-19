@@ -40,11 +40,18 @@ const errorStyle: React.CSSProperties = {
 };
 
 export function FirstPage() {
-  const { status, playerName, planetName, planet, playerHex, error } = useFirstPageBootstrap();
+  const { status, playerName, starName, starSystemHref, planetName, planet, playerHex, error } =
+    useFirstPageBootstrap();
 
   return (
     <div style={layoutStyle}>
-      <ClientHeader playerName={playerName} planetName={planetName} status={status} />
+      <ClientHeader
+        playerName={playerName}
+        starName={starName}
+        starSystemHref={starSystemHref}
+        planetName={planetName}
+        status={status}
+      />
       <main style={status === 'ready' ? contentStyle : centeredContentStyle}>
         {status === 'loading' && <p style={{ color: '#9a9a9a' }}>Connecting…</p>}
 
