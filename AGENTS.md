@@ -113,6 +113,10 @@ Planet domain model: hexagonal toroidal surface.
 
 Shared monorepo standards: [../rules/documents.md](../rules/documents.md).
 
+**Working directory:** Do not read, search, or follow links into any `documentation/` directory (monorepo root, this sub-project, or another sub-project) unless the user explicitly references a path. Links elsewhere in this file are pointers for the user — use `../contracts/` and source code for implementation context.
+
+Do not create documentation files unless explicitly requested.
+
 ---
 
 ## Code style
@@ -155,6 +159,8 @@ Do not commit secrets (`.env`, credentials). Do not create git commits unless ex
 ---
 
 ## Reference docs
+
+Index for human navigation and explicit user references — **not** for agent auto-discovery.
 
 - [../contracts/client-terra-view.yaml](../contracts/client-terra-view.yaml) — Client API integration contract
 - [../documentation/TO-BE-FIXED.md](../documentation/TO-BE-FIXED.md) — Cross-project deferred fixes
