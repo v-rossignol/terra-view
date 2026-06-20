@@ -23,21 +23,17 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
   cursor: default;
   user-select: none;
-  border: 1px solid rgba(0, 0, 0, 0.25);
+  transition: filter 0.15s ease;
 }
 
-.hex-grid__label {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 0.1rem;
-  padding: 0 0.15rem;
-  text-align: center;
-  line-height: 1.1;
-  pointer-events: none;
+.hex-grid__cell:hover {
+  filter: brightness(1.2);
+  z-index: 2;
 }
 
 .hex-grid__coords {
@@ -45,13 +41,11 @@
   font-size: calc(0.6rem * var(--hex-scale));
   font-weight: 600;
   font-family: ui-monospace, monospace;
-}
-
-.hex-grid__biome {
-  color: rgba(255, 255, 255, 0.8);
-  font-size: calc(0.55rem * var(--hex-scale));
-  font-family: system-ui, sans-serif;
-  text-transform: capitalize;
+  text-align: center;
+  line-height: 1.1;
+  padding: 0 0.15rem;
+  pointer-events: none;
+  text-shadow: 0 0 3px rgba(0, 0, 0, 0.85);
 }
 
 .hex-grid__cell--player {

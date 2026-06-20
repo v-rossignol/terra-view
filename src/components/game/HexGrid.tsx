@@ -3,6 +3,7 @@ import type { CSSProperties } from 'react';
 import type { HexCoords, PlanetHexagon } from '../../types/planet';
 import { useContainerSize } from '../../hooks/useContainerSize';
 import { getBiomeColor } from '../../utils/biomeColors';
+import { getBiomeTileset } from '../../utils/biomeTilesets';
 import {
   DEFAULT_HEX_LAYOUT,
   axialToScreen,
@@ -82,16 +83,14 @@ export function HexGrid({
                   left: x,
                   top: y,
                   backgroundColor: getBiomeColor(hex.biome),
+                  backgroundImage: `url(${getBiomeTileset(hex.biome)})`,
                 }}
-                title={`${q}, ${r} — ${hex.biome}`}
+                title={`${q}, ${r}`}
                 data-q={q}
                 data-r={r}
               >
-                <span className="hex-grid__label">
-                  <span className="hex-grid__coords">
-                    ({q},{r})
-                  </span>
-                  <span className="hex-grid__biome">{hex.biome}</span>
+                <span className="hex-grid__coords">
+                  ({q},{r})
                 </span>
               </div>
             );
