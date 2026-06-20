@@ -43,6 +43,20 @@ describe('PlanetModelerPage', () => {
     expect(screen.getByText(/Set parameters and click Generate/)).toBeInTheDocument();
   });
 
+  it('calls randomizeSeed when the random seed button is clicked', () => {
+    const randomizeSeed = vi.fn();
+    mockedHook.mockReturnValue({ ...baseState, randomizeSeed });
+
+    render(
+      <MemoryRouter>
+        <PlanetModelerPage />
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Random seed' }));
+    expect(randomizeSeed).toHaveBeenCalledTimes(1);
+  });
+
   it('calls generate when the button is clicked', () => {
     const generate = vi.fn();
     mockedHook.mockReturnValue({ ...baseState, generate });

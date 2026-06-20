@@ -7,6 +7,7 @@ const BIOME_COLORS: Record<BiomeType, string> = {
   mountain: '#6b6b6b',
   ice: '#a8d4e6',
   volcanic: '#8b2500',
+  plain: '#b8c978',
 };
 
 export function getBiomeColor(biome: BiomeType): string {

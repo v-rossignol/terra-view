@@ -3,6 +3,7 @@ import axios from 'axios';
 import { adminService } from '../services/adminService';
 import type { AdminGeneratedPlanetPreview, PlanetType } from '../types/admin';
 import { getErrorMessage } from '../utils/helpers';
+import { createRandomSeed } from '../utils/randomSeed';
 
 export type ModelerStatus = 'idle' | 'loading' | 'ready' | 'error' | 'unauthorized';
 
@@ -32,7 +33,10 @@ export const usePlanetModeler = (): PlanetModelerState => {
   const [error, setError] = useState<string | null>(null);
 
   const randomizeSeed = useCallback(() => {
-    setSeed(crypto.randomUUID());
+    setSeed(createRandomSeed());
+    setPreview(null);
+    setError(null);
+    setStatus('idle');
   }, []);
 
   const generate = useCallback(async () => {

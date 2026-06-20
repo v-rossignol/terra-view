@@ -1,4 +1,4 @@
-export type BiomeType = 'desert' | 'forest' | 'ocean' | 'mountain' | 'ice' | 'volcanic';
+export type BiomeType = 'desert' | 'forest' | 'ocean' | 'mountain' | 'ice' | 'volcanic' | 'plain';
 
 export interface HexCoords {
   q: number;

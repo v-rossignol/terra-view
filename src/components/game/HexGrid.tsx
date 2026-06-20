@@ -18,7 +18,10 @@ export interface HexGridProps {
   radius: number;
   hexagons?: PlanetHexagon[];
   playerHex?: HexCoords;
+  hoveredHex?: HexCoords | null;
   layout?: HexLayoutConfig;
+  onHexEnter?: (coords: HexCoords) => void;
+  onHexLeave?: () => void;
 }
 
 function buildFallbackHexagons(radius: number): PlanetHexagon[] {
@@ -41,7 +44,10 @@ export function HexGrid({
   radius,
   hexagons,
   playerHex,
+  hoveredHex,
   layout: baseLayout = DEFAULT_HEX_LAYOUT,
+  onHexEnter,
+  onHexLeave,
 }: HexGridProps) {
   const { ref, size } = useContainerSize<HTMLDivElement>();
   const cells = hexagons?.length ? hexagons : buildFallbackHexagons(radius);
@@ -74,20 +80,30 @@ export function HexGrid({
             const { x, y } = axialToScreen(q, r, layout);
             const isPlayer =
               playerHex != null && playerHex.q === q && playerHex.r === r;
+            const isHovered =
+              hoveredHex != null && hoveredHex.q === q && hoveredHex.r === r;
+            const cellClassName = [
+              'hex-grid__cell',
+              isPlayer ? 'hex-grid__cell--player' : '',
+              isHovered ? 'hex-grid__cell--hovered' : '',
+            ]
+              .filter(Boolean)
+              .join(' ');
 
             return (
               <div
                 key={`${q},${r}`}
-                className={`hex-grid__cell${isPlayer ? ' hex-grid__cell--player' : ''}`}
+                className={cellClassName}
                 style={{
                   left: x,
                   top: y,
                   backgroundColor: getBiomeColor(hex.biome),
                   backgroundImage: `url(${getBiomeTileset(hex.biome)})`,
                 }}
-                title={`${q}, ${r}`}
                 data-q={q}
                 data-r={r}
+                onMouseEnter={() => onHexEnter?.({ q, r })}
+                onMouseLeave={() => onHexLeave?.()}
               >
                 <span className="hex-grid__coords">
                   ({q},{r})

@@ -1,4 +1,5 @@
 import type { BiomeType } from '../types/planet';
+import plain from '../assets/tilesets/plain.png';
 import desert from '../assets/tilesets/desert.png';
 import forest from '../assets/tilesets/forest.png';
 import ice from '../assets/tilesets/ice.png';
@@ -13,6 +14,7 @@ const BIOME_TILESETS: Record<BiomeType, string> = {
   mountain,
   ice,
   volcanic,
+  plain,
 };
 
 export function getBiomeTileset(biome: BiomeType): string {

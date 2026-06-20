@@ -101,6 +101,28 @@ describe('usePlanetModeler', () => {
     expect(result.current.error).toContain('Sign in');
   });
 
+  it('generates a new seed and clears the previous preview', async () => {
+    mockedAdmin.generatePlanetPreview.mockResolvedValueOnce(preview);
+
+    const { result } = renderHook(() => usePlanetModeler());
+
+    await act(async () => {
+      await result.current.generate();
+    });
+
+    const previousSeed = result.current.seed;
+    expect(result.current.preview).not.toBeNull();
+
+    act(() => {
+      result.current.randomizeSeed();
+    });
+
+    expect(result.current.seed).not.toBe(previousSeed);
+    expect(result.current.seed.length).toBeGreaterThan(0);
+    expect(result.current.preview).toBeNull();
+    expect(result.current.status).toBe('idle');
+  });
+
   it('shows a forbidden message on 403', async () => {
     mockedAdmin.generatePlanetPreview.mockRejectedValueOnce(createAxiosError(403, 'Forbidden'));
 

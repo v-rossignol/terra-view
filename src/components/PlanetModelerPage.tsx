@@ -1,4 +1,6 @@
 import { HexGrid } from './game/HexGrid';
+import { HexResourcesPanel } from './ui/HexResourcesPanel';
+import { useHexResourceHover } from '../hooks/useHexResourceHover';
 import { usePlanetModeler } from '../hooks/usePlanetModeler';
 import type { PlanetType } from '../types/admin';
 
@@ -65,6 +67,7 @@ const contentStyle: React.CSSProperties = {
   minHeight: 0,
   width: '100%',
   overflow: 'hidden',
+  position: 'relative',
 };
 
 const centeredContentStyle: React.CSSProperties = {
@@ -110,6 +113,10 @@ export function PlanetModelerPage() {
     randomizeSeed,
     generate,
   } = usePlanetModeler();
+
+  const planetId = preview?._id ?? null;
+  const { hoveredHex, hexResources, status: hexResourceStatus, error: hexResourceError, onHexEnter, onHexLeave } =
+    useHexResourceHover(planetId);
 
   const isGenerating = status === 'loading';
 
@@ -202,7 +209,21 @@ export function PlanetModelerPage() {
         {status === 'loading' && <p style={{ color: '#9a9a9a' }}>Generating planet surface…</p>}
 
         {status === 'ready' && preview != null && (
-          <HexGrid radius={preview.radius} hexagons={preview.surface.hexagons} />
+          <>
+            <HexGrid
+              radius={preview.radius}
+              hexagons={preview.surface.hexagons}
+              hoveredHex={hoveredHex}
+              onHexEnter={onHexEnter}
+              onHexLeave={onHexLeave}
+            />
+            <HexResourcesPanel
+              hoveredHex={hoveredHex}
+              hexResources={hexResources}
+              status={hexResourceStatus}
+              error={hexResourceError}
+            />
+          </>
         )}
       </main>
     </div>
