@@ -1,4 +1,4 @@
-import type { PlayerLocationOnPlanet } from '../types/player';
+import type { HexCoords, PlayerLocationOnPlanet } from '../types/player';
 
 export const isPlayerOnPlanet = (
   location: unknown,
@@ -13,5 +13,18 @@ export const isPlayerOnPlanet = (
     planet != null &&
     typeof planet.id === 'string' &&
     planet.id.length > 0
+  );
+};
+
+export const hasPlanetHex = (
+  location: PlayerLocationOnPlanet,
+): location is PlayerLocationOnPlanet & {
+  planet: { id: string; hex_coords: HexCoords };
+} => {
+  const { hex_coords } = location.planet;
+  return (
+    hex_coords != null &&
+    typeof hex_coords.q === 'number' &&
+    typeof hex_coords.r === 'number'
   );
 };

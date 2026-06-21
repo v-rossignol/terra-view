@@ -1,12 +1,22 @@
 import { describe, expect, it } from 'vitest';
-import { isPlayerOnPlanet } from '@utils/playerLocation';
+import { hasPlanetHex, isPlayerOnPlanet } from '@utils/playerLocation';
 
 describe('isPlayerOnPlanet', () => {
-  it('returns true for planet-depth location', () => {
+  it('returns true for planet-depth location with hex', () => {
     const location = {
       cube: { id: 'cube-1' },
       starSystem: { id: 'system-1' },
       planet: { id: 'planet-1', hex_coords: { q: 2, r: 5 } },
+    };
+
+    expect(isPlayerOnPlanet(location)).toBe(true);
+  });
+
+  it('returns true for planet overview without hex_coords', () => {
+    const location = {
+      cube: { id: 'cube-1' },
+      starSystem: { id: 'system-1' },
+      planet: { id: 'planet-1' },
     };
 
     expect(isPlayerOnPlanet(location)).toBe(true);
@@ -35,5 +45,27 @@ describe('isPlayerOnPlanet', () => {
     };
 
     expect(isPlayerOnPlanet(location)).toBe(false);
+  });
+});
+
+describe('hasPlanetHex', () => {
+  it('returns true when hex_coords are present', () => {
+    const location = {
+      cube: { id: 'cube-1' },
+      starSystem: { id: 'system-1' },
+      planet: { id: 'planet-1', hex_coords: { q: 2, r: 5 } },
+    };
+
+    expect(hasPlanetHex(location)).toBe(true);
+  });
+
+  it('returns false for planet overview', () => {
+    const location = {
+      cube: { id: 'cube-1' },
+      starSystem: { id: 'system-1' },
+      planet: { id: 'planet-1' },
+    };
+
+    expect(hasPlanetHex(location)).toBe(false);
   });
 });

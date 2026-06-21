@@ -6,7 +6,8 @@ import { planetService } from '../services/planetService';
 import { starSystemService } from '../services/starSystemService';
 import type { HexCoords, Planet } from '../types/planet';
 import { getErrorMessage } from '../utils/helpers';
-import { isPlayerOnPlanet } from '../utils/playerLocation';
+import { rollRandomHex } from '../utils/planetGrid';
+import { hasPlanetHex, isPlayerOnPlanet } from '../utils/playerLocation';
 
 export type FirstPageStatus = 'loading' | 'ready' | 'error';
 
@@ -84,6 +85,33 @@ export const useFirstPageBootstrap = (): FirstPageState => {
           return;
         }
 
+        let playerHex = hasPlanetHex(player.location) ? player.location.planet.hex_coords : null;
+
+        if (playerHex == null) {
+          const { player: updatedPlayer } = await playerService.updatePlanetHex(
+            rollRandomHex(planet.radius),
+          );
+          if (cancelled) {
+            return;
+          }
+
+          if (!isPlayerOnPlanet(updatedPlayer.location) || !hasPlanetHex(updatedPlayer.location)) {
+            setState({
+              status: 'error',
+              playerName: user.username,
+              starName: null,
+              starSystemHref: null,
+              planetName: null,
+              planet: null,
+              playerHex: null,
+              error: 'Unable to select a starting hex on this planet.',
+            });
+            return;
+          }
+
+          playerHex = updatedPlayer.location.planet.hex_coords;
+        }
+
         const [starSystem, canEnter] = await Promise.all([
           starSystemService.getStarSystem(planet.starSystemId),
           playerService.canEnterStarSystem(planet.starSystemId),
@@ -99,7 +127,7 @@ export const useFirstPageBootstrap = (): FirstPageState => {
           starSystemHref: canEnter.canEnter ? `/solaris/${planet.starSystemId}` : null,
           planetName: planet.name,
           planet,
-          playerHex: player.location.planet.hex_coords,
+          playerHex,
           error: null,
         });
       } catch (error) {

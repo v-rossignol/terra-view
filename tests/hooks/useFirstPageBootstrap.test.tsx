@@ -17,6 +17,7 @@ vi.mock('@services/playerService', () => ({
   playerService: {
     enterGame: vi.fn(),
     canEnterStarSystem: vi.fn(),
+    updatePlanetHex: vi.fn(),
   },
 }));
 
@@ -110,6 +111,62 @@ describe('useFirstPageBootstrap', () => {
     expect(result.current.error).toBeNull();
     expect(mockedStarSystem.getStarSystem).toHaveBeenCalledWith('system-1');
     expect(mockedPlayer.canEnterStarSystem).toHaveBeenCalledWith('system-1');
+    expect(mockedPlayer.updatePlanetHex).not.toHaveBeenCalled();
+  });
+
+  it('selects a spawn hex when the player is at planet overview', async () => {
+    mockedAuth.getCurrentUser.mockResolvedValue({
+      id: 'user-1',
+      username: 'pilot42',
+      email: 'pilot@example.com',
+    });
+    mockedPlayer.enterGame.mockResolvedValue({
+      player: {
+        id: 'player-1',
+        userId: 'user-1',
+        location: {
+          cube: { id: 'cube-1' },
+          starSystem: { id: 'system-1' },
+          planet: { id: 'planet-1' },
+        },
+        createdAt: '2026-06-11T12:00:00.000Z',
+        updatedAt: '2026-06-11T12:05:00.000Z',
+      },
+    });
+    mockedPlanet.getPlanet.mockResolvedValue({
+      _id: 'planet-1',
+      name: 'Planet 1',
+      starSystemId: 'system-1',
+      type: 'rocky',
+      radius: 5,
+    });
+    mockedPlayer.updatePlanetHex.mockResolvedValue({
+      player: {
+        id: 'player-1',
+        userId: 'user-1',
+        location: {
+          cube: { id: 'cube-1' },
+          starSystem: { id: 'system-1' },
+          planet: { id: 'planet-1', hex_coords: { q: 3, r: 4 } },
+        },
+        createdAt: '2026-06-11T12:00:00.000Z',
+        updatedAt: '2026-06-11T12:06:00.000Z',
+      },
+    });
+    mockedStarSystem.getStarSystem.mockResolvedValue({
+      _id: 'system-1',
+      name: 'Alpha Centauri',
+    });
+    mockedPlayer.canEnterStarSystem.mockResolvedValue({ canEnter: true });
+
+    const { result } = renderHook(() => useFirstPageBootstrap());
+
+    await waitFor(() => {
+      expect(result.current.status).toBe('ready');
+    });
+
+    expect(mockedPlayer.updatePlanetHex).toHaveBeenCalledOnce();
+    expect(result.current.playerHex).toEqual({ q: 3, r: 4 });
   });
 
   it('omits the Solaris link when the player cannot enter the star system', async () => {
