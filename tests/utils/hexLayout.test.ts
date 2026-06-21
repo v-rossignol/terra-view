@@ -4,6 +4,9 @@ import {
   axialToScreen,
   fitLayoutToBounds,
   getGridPixelSize,
+  getHexCenterDistance,
+  getMaxAdjacentHexCenterDistance,
+  getToroidalHexScreenOffset,
   hexVerticalStep,
 } from '@utils/hexLayout';
 
@@ -55,5 +58,21 @@ describe('hexLayout', () => {
     const fitted = fitLayoutToBounds(5, { width: 0, height: 0 });
     expect(fitted.hexWidth).toBe(0);
     expect(fitted.hexHeight).toBe(0);
+  });
+
+  it('treats (4, 5) as adjacent to (5, 6) on screen', () => {
+    const distance = getHexCenterDistance({ q: 5, r: 6 }, { q: 4, r: 5 }, DEFAULT_HEX_LAYOUT, 10);
+    expect(distance).toBeLessThanOrEqual(getMaxAdjacentHexCenterDistance(DEFAULT_HEX_LAYOUT));
+  });
+
+  it('treats (6, 5) as not adjacent to (5, 6) on screen', () => {
+    const distance = getHexCenterDistance({ q: 5, r: 6 }, { q: 6, r: 5 }, DEFAULT_HEX_LAYOUT, 10);
+    expect(distance).toBeGreaterThan(getMaxAdjacentHexCenterDistance(DEFAULT_HEX_LAYOUT));
+  });
+
+  it('places (4, 5) up-left of (5, 6)', () => {
+    const offset = getToroidalHexScreenOffset({ q: 5, r: 6 }, { q: 4, r: 5 }, DEFAULT_HEX_LAYOUT, 10);
+    expect(offset.x).toBeLessThan(0);
+    expect(offset.y).toBeLessThan(0);
   });
 });

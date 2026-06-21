@@ -39,6 +39,63 @@ export function axialToScreen(
   };
 }
 
+/** Longest center-to-center distance between visually touching hexes on this layout. */
+export function getMaxAdjacentHexCenterDistance(
+  config: HexLayoutConfig = DEFAULT_HEX_LAYOUT,
+): number {
+  return (
+    Math.hypot(config.hexWidth, hexVerticalStep(config.hexHeight)) * 1.02
+  );
+}
+
+/** Shortest screen offset between two hexes, folding toroidal jumps when `radius` is set. */
+export function getToroidalHexScreenOffset(
+  focus: { q: number; r: number },
+  neighbor: { q: number; r: number },
+  config: HexLayoutConfig = DEFAULT_HEX_LAYOUT,
+  radius?: number,
+): ScreenPoint {
+  const focusScreen = axialToScreen(focus.q, focus.r, config);
+  const neighborScreen = axialToScreen(neighbor.q, neighbor.r, config);
+  const dx = neighborScreen.x - focusScreen.x;
+  const dy = neighborScreen.y - focusScreen.y;
+
+  if (radius == null || radius <= 0) {
+    return { x: dx, y: dy };
+  }
+
+  const gridWidth = radius * config.hexWidth;
+  const gridHeight = (radius + 1) * hexVerticalStep(config.hexHeight);
+  let bestX = dx;
+  let bestY = dy;
+  let bestDistance = Math.hypot(dx, dy);
+
+  for (const xShift of [-gridWidth, 0, gridWidth]) {
+    for (const yShift of [-gridHeight, 0, gridHeight]) {
+      const shiftedX = dx + xShift;
+      const shiftedY = dy + yShift;
+      const distance = Math.hypot(shiftedX, shiftedY);
+      if (distance < bestDistance) {
+        bestDistance = distance;
+        bestX = shiftedX;
+        bestY = shiftedY;
+      }
+    }
+  }
+
+  return { x: bestX, y: bestY };
+}
+
+export function getHexCenterDistance(
+  a: { q: number; r: number },
+  b: { q: number; r: number },
+  config: HexLayoutConfig = DEFAULT_HEX_LAYOUT,
+  radius?: number,
+): number {
+  const offset = getToroidalHexScreenOffset(a, b, config, radius);
+  return Math.hypot(offset.x, offset.y);
+}
+
 /** Pixel bounds for a radius × (radius + 1) toroidal hex grid (accounts for odd-r offset). */
 export function getGridPixelSize(
   radius: number,

@@ -22,6 +22,7 @@ export interface HexGridProps {
   layout?: HexLayoutConfig;
   onHexEnter?: (coords: HexCoords) => void;
   onHexLeave?: () => void;
+  onHexClick?: (coords: HexCoords) => void;
 }
 
 function buildFallbackHexagons(radius: number): PlanetHexagon[] {
@@ -48,6 +49,7 @@ export function HexGrid({
   layout: baseLayout = DEFAULT_HEX_LAYOUT,
   onHexEnter,
   onHexLeave,
+  onHexClick,
 }: HexGridProps) {
   const { ref, size } = useContainerSize<HTMLDivElement>();
   const cells = hexagons?.length ? hexagons : buildFallbackHexagons(radius);
@@ -86,6 +88,7 @@ export function HexGrid({
               'hex-grid__cell',
               isPlayer ? 'hex-grid__cell--player' : '',
               isHovered ? 'hex-grid__cell--hovered' : '',
+              onHexClick != null ? 'hex-grid__cell--clickable' : '',
             ]
               .filter(Boolean)
               .join(' ');
@@ -104,11 +107,16 @@ export function HexGrid({
                 data-r={r}
                 onMouseEnter={() => onHexEnter?.({ q, r })}
                 onMouseLeave={() => onHexLeave?.()}
-              >
-                <span className="hex-grid__coords">
-                  ({q},{r})
-                </span>
-              </div>
+                onClick={() => onHexClick?.({ q, r })}
+                onKeyDown={(event) => {
+                  if (onHexClick != null && (event.key === 'Enter' || event.key === ' ')) {
+                    event.preventDefault();
+                    onHexClick({ q, r });
+                  }
+                }}
+                role={onHexClick != null ? 'button' : undefined}
+                tabIndex={onHexClick != null ? 0 : undefined}
+              />
             );
           })}
         </div>
