@@ -29,6 +29,11 @@ describe('PlanetHexPage', () => {
       hex: null,
       neighbors: [],
       hexResources: null,
+      playerId: null,
+      playerName: null,
+      starName: null,
+      starSystemHref: null,
+      planetUnits: [],
       error: null,
     });
 
@@ -69,6 +74,11 @@ describe('PlanetHexPage', () => {
         biome: 'forest',
         resources: [],
       },
+      playerId: 'player-1',
+      playerName: 'Ada',
+      starName: 'Sol',
+      starSystemHref: '/solaris/system-1',
+      planetUnits: [],
       error: null,
     });
 
@@ -80,10 +90,46 @@ describe('PlanetHexPage', () => {
       </MemoryRouter>,
     );
 
-    expect(screen.getByText('Astra Prime · Hex (2, 3)')).toBeInTheDocument();
+    expect(screen.getByRole('banner')).toHaveTextContent('Ada');
+    expect(screen.getByRole('banner')).toHaveTextContent('Astra Prime');
+    expect(screen.getByRole('link', { name: 'Astra Prime' })).toHaveAttribute('href', '/');
+    expect(screen.getByRole('banner')).toHaveTextContent('Hex (2, 3)');
     expect(screen.getByTestId('single-hex-view')).toBeInTheDocument();
     expect(screen.getByText('Danger level: 4')).toBeInTheDocument();
     expect(screen.getByText('No resources on this hex.')).toBeInTheDocument();
+  });
+
+  it('shows a Stellar Gate link when the session is missing', () => {
+    mockedHook.mockReturnValue({
+      status: 'error',
+      planetName: null,
+      planetRadius: null,
+      coords: { q: 2, r: 3 },
+      hex: null,
+      neighbors: [],
+      hexResources: null,
+      playerId: null,
+      playerName: null,
+      starName: null,
+      starSystemHref: null,
+      planetUnits: [],
+      error: 'You are not signed in. Log in via Stellar Gate (/stellar-gate/).',
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/planet-1/2/3']}>
+        <Routes>
+          <Route path="/:planetId/:q/:r" element={<PlanetHexPage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByRole('alert')).toHaveTextContent('not signed in');
+    expect(screen.getByRole('link', { name: 'Go to Stellar Gate' })).toHaveAttribute(
+      'href',
+      '/stellar-gate/',
+    );
+    expect(screen.queryByRole('link', { name: 'Back to planet surface' })).not.toBeInTheDocument();
   });
 
   it('shows an error and back link when loading fails', () => {
@@ -95,6 +141,11 @@ describe('PlanetHexPage', () => {
       hex: null,
       neighbors: [],
       hexResources: null,
+      playerId: null,
+      playerName: null,
+      starName: null,
+      starSystemHref: null,
+      planetUnits: [],
       error: 'Hex (2, 3) is outside this planet\'s surface.',
     });
 

@@ -1,8 +1,12 @@
+import { Link } from 'react-router-dom';
+
 interface ClientHeaderProps {
   playerName?: string | null;
   starName?: string | null;
   starSystemHref?: string | null;
   planetName?: string | null;
+  planetTo?: string;
+  detail?: string | null;
   status?: 'loading' | 'ready' | 'error';
 }
 
@@ -41,6 +45,8 @@ export function ClientHeader({
   starName,
   starSystemHref,
   planetName,
+  planetTo,
+  detail,
   status = 'ready',
 }: ClientHeaderProps) {
   const showContext = status === 'ready' && playerName && planetName;
@@ -76,8 +82,22 @@ export function ClientHeader({
           </span>
           <span>
             <span style={labelStyle}>Planet</span>
-            {planetName}
+            {planetTo != null ? (
+              <Link to={planetTo} style={linkStyle}>
+                {planetName}
+              </Link>
+            ) : (
+              planetName
+            )}
           </span>
+          {detail ? (
+            <>
+              <span style={separatorStyle} aria-hidden="true">
+                ·
+              </span>
+              <span>{detail}</span>
+            </>
+          ) : null}
         </span>
       ) : status === 'loading' ? (
         <span style={{ color: '#9a9a9a' }}>Loading…</span>

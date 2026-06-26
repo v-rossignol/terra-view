@@ -44,7 +44,7 @@ const errorStyle: React.CSSProperties = {
 
 export function FirstPage() {
   const navigate = useNavigate();
-  const { status, playerName, starName, starSystemHref, planetName, planet, playerHex, error } =
+  const { status, playerName, playerId, starName, starSystemHref, planetName, planet, planetUnits, error } =
     useFirstPageBootstrap();
 
   const handleHexClick = useCallback(
@@ -87,7 +87,8 @@ export function FirstPage() {
           <HexGrid
             radius={planet.radius}
             hexagons={planet.surface?.hexagons}
-            playerHex={playerHex ?? undefined}
+            playerId={playerId ?? undefined}
+            planetUnits={planetUnits}
             onHexClick={handleHexClick}
           />
         )}

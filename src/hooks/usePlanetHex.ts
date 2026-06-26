@@ -1,9 +1,14 @@
 import { useEffect, useState } from 'react';
 import { planetService } from '../services/planetService';
+import { playerService } from '../services/playerService';
 import { resourceService } from '../services/resourceService';
+import { starSystemService } from '../services/starSystemService';
+import { unitService } from '../services/unitService';
 import type { HexCoords, PlanetHexagon } from '../types/planet';
 import type { PlanetHexResources } from '../types/resource';
+import type { UnitInstance } from '../types/unit';
 import { getErrorMessage } from '../utils/helpers';
+import { isUnauthorizedError, UNAUTHORIZED_ERROR_MESSAGE } from '../utils/authErrors';
 import { isHexInBounds, parseHexCoord } from '../utils/hexCoords';
 import { findVisualNeighborHexagons } from '../utils/planetGrid';
 
@@ -17,6 +22,11 @@ export interface PlanetHexState {
   hex: PlanetHexagon | null;
   neighbors: PlanetHexagon[];
   hexResources: PlanetHexResources | null;
+  playerId: string | null;
+  playerName: string | null;
+  starName: string | null;
+  starSystemHref: string | null;
+  planetUnits: UnitInstance[];
   error: string | null;
 }
 
@@ -27,6 +37,11 @@ const emptyState = {
   hex: null as PlanetHexagon | null,
   neighbors: [] as PlanetHexagon[],
   hexResources: null as PlanetHexResources | null,
+  playerId: null as string | null,
+  playerName: null as string | null,
+  starName: null as string | null,
+  starSystemHref: null as string | null,
+  planetUnits: [] as UnitInstance[],
   error: null as string | null,
 };
 
@@ -65,14 +80,27 @@ export function usePlanetHex(
     }
 
     const load = async () => {
-      setState({
+      setState((prev) => ({
         status: 'loading',
-        ...emptyState,
+        planetName: prev.planetName,
+        planetRadius: prev.planetRadius,
         coords: { q, r },
-      });
+        hex: null,
+        neighbors: [],
+        hexResources: null,
+        playerId: prev.playerId,
+        playerName: prev.playerName,
+        starName: prev.starName,
+        starSystemHref: prev.starSystemHref,
+        planetUnits: [],
+        error: null,
+      }));
 
       try {
-        const planet = await planetService.getPlanet(trimmedPlanetId);
+        const [planet, playerSession] = await Promise.all([
+          planetService.getPlanet(trimmedPlanetId),
+          playerService.getCurrentPlayerSession(),
+        ]);
         if (cancelled) {
           return;
         }
@@ -86,6 +114,11 @@ export function usePlanetHex(
             hex: null,
             neighbors: [],
             hexResources: null,
+            playerId: playerSession?.playerId ?? null,
+            playerName: playerSession?.playerName ?? null,
+            starName: null,
+            starSystemHref: null,
+            planetUnits: [],
             error: `Hex (${q}, ${r}) is outside this planet's surface.`,
           });
           return;
@@ -103,6 +136,11 @@ export function usePlanetHex(
             hex: null,
             neighbors: [],
             hexResources: null,
+            playerId: playerSession?.playerId ?? null,
+            playerName: playerSession?.playerName ?? null,
+            starName: null,
+            starSystemHref: null,
+            planetUnits: [],
             error: `Hex (${q}, ${r}) was not found on this planet.`,
           });
           return;
@@ -114,12 +152,14 @@ export function usePlanetHex(
           planet.radius,
         );
 
-        let hexResources: PlanetHexResources | null = null;
-        try {
-          hexResources = await resourceService.getPlanetHexResources(trimmedPlanetId, q, r);
-        } catch {
-          hexResources = null;
-        }
+        const [hexResources, planetUnits, starSystem, canEnter] = await Promise.all([
+          resourceService
+            .getPlanetHexResources(trimmedPlanetId, q, r)
+            .catch(() => null),
+          unitService.listPlanetUnits(trimmedPlanetId).catch(() => [] as UnitInstance[]),
+          starSystemService.getStarSystem(planet.starSystemId).catch(() => null),
+          playerService.canEnterStarSystem(planet.starSystemId).catch(() => ({ canEnter: false })),
+        ]);
 
         if (cancelled) {
           return;
@@ -133,10 +173,25 @@ export function usePlanetHex(
           hex,
           neighbors,
           hexResources,
+          playerId: playerSession?.playerId ?? null,
+          playerName: playerSession?.playerName ?? null,
+          starName: starSystem?.name ?? null,
+          starSystemHref: canEnter.canEnter ? `/solaris/${planet.starSystemId}` : null,
+          planetUnits,
           error: null,
         });
       } catch (error) {
         if (cancelled) {
+          return;
+        }
+
+        if (isUnauthorizedError(error)) {
+          setState({
+            status: 'error',
+            ...emptyState,
+            coords: { q, r },
+            error: UNAUTHORIZED_ERROR_MESSAGE,
+          });
           return;
         }
 

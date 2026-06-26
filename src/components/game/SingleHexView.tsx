@@ -1,9 +1,12 @@
 import { useMemo } from 'react';
 import type { CSSProperties } from 'react';
 import type { HexCoords, PlanetHexagon } from '../../types/planet';
+import type { UnitInstance } from '../../types/unit';
 import { useContainerSize } from '../../hooks/useContainerSize';
 import { getBiomeColor } from '../../utils/biomeColors';
 import { getBiomeTileset } from '../../utils/biomeTilesets';
+import { groupUnitsByHex } from '../../utils/unitLocation';
+import { HexUnitMarkers } from './HexUnitMarkers';
 import {
   DEFAULT_HEX_LAYOUT,
   getToroidalHexScreenOffset,
@@ -18,6 +21,10 @@ export interface SingleHexViewProps {
   hex: PlanetHexagon;
   radius: number;
   neighbors?: PlanetHexagon[];
+  playerId?: string;
+  planetUnits?: UnitInstance[];
+  selectedUnitId?: string | null;
+  onUnitSelect?: (unit: UnitInstance) => void;
   onNeighborClick?: (coords: HexCoords) => void;
   layout?: HexLayoutConfig;
 }
@@ -57,6 +64,10 @@ export function SingleHexView({
   hex,
   radius,
   neighbors = [],
+  playerId,
+  planetUnits = [],
+  selectedUnitId = null,
+  onUnitSelect,
   onNeighborClick,
   layout: baseLayout = DEFAULT_HEX_LAYOUT,
 }: SingleHexViewProps) {
@@ -67,6 +78,7 @@ export function SingleHexView({
 
   const focus = hex.coordinates;
   const cells = useMemo(() => [hex, ...neighbors], [hex, neighbors]);
+  const unitsByHex = useMemo(() => groupUnitsByHex(planetUnits), [planetUnits]);
 
   const centerX = size.width / 2 - layout.hexWidth / 2;
   const centerY = size.height / 2 - layout.hexHeight / 2;
@@ -93,6 +105,7 @@ export function SingleHexView({
             const offset = isFocus
               ? { x: 0, y: 0 }
               : getToroidalHexScreenOffset(focus, { q, r }, layout, radius);
+            const hexUnits = unitsByHex.get(`${q},${r}`) ?? [];
             const cellClassName = [
               'hex-grid__cell',
               isFocus ? 'hex-grid__cell--focus' : 'hex-grid__cell--neighbor',
@@ -127,7 +140,16 @@ export function SingleHexView({
                 role={!isFocus && onNeighborClick != null ? 'button' : undefined}
                 tabIndex={!isFocus && onNeighborClick != null ? 0 : undefined}
                 aria-label={!isFocus ? `Neighbor hex (${q}, ${r})` : undefined}
-              />
+              >
+                <HexUnitMarkers
+                  units={hexUnits}
+                  playerId={playerId}
+                  ownUnitMarker="sprite"
+                  selectable={isFocus && onUnitSelect != null}
+                  selectedUnitId={selectedUnitId}
+                  onUnitSelect={onUnitSelect}
+                />
+              </div>
             );
           })}
         </div>

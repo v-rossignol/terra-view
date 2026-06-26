@@ -42,6 +42,7 @@ describe('FirstPage', () => {
     mockedHook.mockReturnValue({
       status: 'ready',
       playerName: 'Ada',
+      playerId: 'player-1',
       starName: 'Sol',
       starSystemHref: '/solaris/system-1',
       planetName: 'Astra Prime',
@@ -54,6 +55,7 @@ describe('FirstPage', () => {
         surface: { hexagons: [], generatedAt: '2026-01-01T00:00:00.000Z' },
       },
       playerHex: { q: 0, r: 0 },
+      planetUnits: [],
       error: null,
     });
 

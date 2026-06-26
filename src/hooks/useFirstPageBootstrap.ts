@@ -4,35 +4,40 @@ import { authService } from '../services/authService';
 import { playerService } from '../services/playerService';
 import { planetService } from '../services/planetService';
 import { starSystemService } from '../services/starSystemService';
+import { unitService } from '../services/unitService';
 import type { HexCoords, Planet } from '../types/planet';
+import type { UnitInstance } from '../types/unit';
 import { getErrorMessage } from '../utils/helpers';
 import { rollRandomHex } from '../utils/planetGrid';
 import { hasPlanetHex, isPlayerOnPlanet } from '../utils/playerLocation';
+import { UNAUTHORIZED_ERROR_MESSAGE } from '../utils/authErrors';
 
 export type FirstPageStatus = 'loading' | 'ready' | 'error';
 
 export interface FirstPageState {
   status: FirstPageStatus;
   playerName: string | null;
+  playerId: string | null;
   starName: string | null;
   starSystemHref: string | null;
   planetName: string | null;
   planet: Planet | null;
   playerHex: HexCoords | null;
+  planetUnits: UnitInstance[];
   error: string | null;
 }
-
-const LOGIN_PATH = '/stellar-gate/';
 
 export const useFirstPageBootstrap = (): FirstPageState => {
   const [state, setState] = useState<FirstPageState>({
     status: 'loading',
     playerName: null,
+    playerId: null,
     starName: null,
     starSystemHref: null,
     planetName: null,
     planet: null,
     playerHex: null,
+    planetUnits: [],
     error: null,
   });
 
@@ -55,11 +60,13 @@ export const useFirstPageBootstrap = (): FirstPageState => {
           setState({
             status: 'error',
             playerName: null,
+            playerId: null,
             starName: null,
             starSystemHref: null,
             planetName: null,
             planet: null,
             playerHex: null,
+            planetUnits: [],
             error: 'No player profile found. Enter the game from Stellar Gate first.',
           });
           return;
@@ -69,11 +76,13 @@ export const useFirstPageBootstrap = (): FirstPageState => {
           setState({
             status: 'error',
             playerName: user.username,
+            playerId: player.id,
             starName: null,
             starSystemHref: null,
             planetName: null,
             planet: null,
             playerHex: null,
+            planetUnits: [],
             error:
               'Your player is not on a planet surface. Travel to a planet before opening Terra View.',
           });
@@ -99,11 +108,13 @@ export const useFirstPageBootstrap = (): FirstPageState => {
             setState({
               status: 'error',
               playerName: user.username,
+              playerId: player.id,
               starName: null,
               starSystemHref: null,
               planetName: null,
               planet: null,
               playerHex: null,
+              planetUnits: [],
               error: 'Unable to select a starting hex on this planet.',
             });
             return;
@@ -112,9 +123,10 @@ export const useFirstPageBootstrap = (): FirstPageState => {
           playerHex = updatedPlayer.location.planet.hex_coords;
         }
 
-        const [starSystem, canEnter] = await Promise.all([
+        const [starSystem, canEnter, planetUnits] = await Promise.all([
           starSystemService.getStarSystem(planet.starSystemId),
           playerService.canEnterStarSystem(planet.starSystemId),
+          unitService.listPlanetUnits(player.location.planet.id),
         ]);
         if (cancelled) {
           return;
@@ -123,11 +135,13 @@ export const useFirstPageBootstrap = (): FirstPageState => {
         setState({
           status: 'ready',
           playerName: user.username,
+          playerId: player.id,
           starName: starSystem.name,
           starSystemHref: canEnter.canEnter ? `/solaris/${planet.starSystemId}` : null,
           planetName: planet.name,
           planet,
           playerHex,
+          planetUnits,
           error: null,
         });
       } catch (error) {
@@ -139,12 +153,14 @@ export const useFirstPageBootstrap = (): FirstPageState => {
           setState({
             status: 'error',
             playerName: null,
+            playerId: null,
             starName: null,
             starSystemHref: null,
             planetName: null,
             planet: null,
             playerHex: null,
-            error: `You are not signed in. Log in via Stellar Gate (${LOGIN_PATH}).`,
+            planetUnits: [],
+            error: UNAUTHORIZED_ERROR_MESSAGE,
           });
           return;
         }
@@ -152,11 +168,13 @@ export const useFirstPageBootstrap = (): FirstPageState => {
         setState({
           status: 'error',
           playerName: null,
+          playerId: null,
           starName: null,
           starSystemHref: null,
           planetName: null,
           planet: null,
           playerHex: null,
+          planetUnits: [],
           error: getErrorMessage(error, 'Failed to load player or planet data.'),
         });
       }

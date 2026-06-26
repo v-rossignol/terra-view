@@ -1,9 +1,12 @@
 import { useMemo } from 'react';
 import type { CSSProperties } from 'react';
 import type { HexCoords, PlanetHexagon } from '../../types/planet';
+import type { UnitInstance } from '../../types/unit';
 import { useContainerSize } from '../../hooks/useContainerSize';
 import { getBiomeColor } from '../../utils/biomeColors';
 import { getBiomeTileset } from '../../utils/biomeTilesets';
+import { groupUnitsByHex } from '../../utils/unitLocation';
+import { HexUnitMarkers } from './HexUnitMarkers';
 import {
   DEFAULT_HEX_LAYOUT,
   axialToScreen,
@@ -17,7 +20,8 @@ import './HexGrid.css';
 export interface HexGridProps {
   radius: number;
   hexagons?: PlanetHexagon[];
-  playerHex?: HexCoords;
+  playerId?: string;
+  planetUnits?: UnitInstance[];
   hoveredHex?: HexCoords | null;
   layout?: HexLayoutConfig;
   onHexEnter?: (coords: HexCoords) => void;
@@ -44,7 +48,8 @@ function buildFallbackHexagons(radius: number): PlanetHexagon[] {
 export function HexGrid({
   radius,
   hexagons,
-  playerHex,
+  playerId,
+  planetUnits = [],
   hoveredHex,
   layout: baseLayout = DEFAULT_HEX_LAYOUT,
   onHexEnter,
@@ -53,6 +58,7 @@ export function HexGrid({
 }: HexGridProps) {
   const { ref, size } = useContainerSize<HTMLDivElement>();
   const cells = hexagons?.length ? hexagons : buildFallbackHexagons(radius);
+  const unitsByHex = useMemo(() => groupUnitsByHex(planetUnits), [planetUnits]);
 
   const layout = useMemo(
     () => fitLayoutToBounds(radius, size, baseLayout),
@@ -80,13 +86,11 @@ export function HexGrid({
           {cells.map((hex) => {
             const { q, r } = hex.coordinates;
             const { x, y } = axialToScreen(q, r, layout);
-            const isPlayer =
-              playerHex != null && playerHex.q === q && playerHex.r === r;
             const isHovered =
               hoveredHex != null && hoveredHex.q === q && hoveredHex.r === r;
+            const hexUnits = unitsByHex.get(`${q},${r}`) ?? [];
             const cellClassName = [
               'hex-grid__cell',
-              isPlayer ? 'hex-grid__cell--player' : '',
               isHovered ? 'hex-grid__cell--hovered' : '',
               onHexClick != null ? 'hex-grid__cell--clickable' : '',
             ]
@@ -116,7 +120,9 @@ export function HexGrid({
                 }}
                 role={onHexClick != null ? 'button' : undefined}
                 tabIndex={onHexClick != null ? 0 : undefined}
-              />
+              >
+                <HexUnitMarkers units={hexUnits} playerId={playerId} />
+              </div>
             );
           })}
         </div>

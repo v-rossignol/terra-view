@@ -1,4 +1,5 @@
 import { render, screen } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it } from 'vitest';
 import { ClientHeader } from '@components/ui/ClientHeader';
 
@@ -63,5 +64,33 @@ describe('ClientHeader', () => {
     expect(screen.queryByText('pilot42')).not.toBeInTheDocument();
     expect(screen.queryByText('Alpha Centauri')).not.toBeInTheDocument();
     expect(screen.queryByText('Planet 1')).not.toBeInTheDocument();
+  });
+
+  it('shows an optional detail segment after the planet name', () => {
+    render(
+      <ClientHeader
+        status="ready"
+        playerName="pilot42"
+        planetName="Planet 1"
+        detail="Hex (2, 3)"
+      />,
+    );
+
+    expect(screen.getByRole('banner')).toHaveTextContent('Hex (2, 3)');
+  });
+
+  it('links the planet name when planetTo is provided', () => {
+    render(
+      <MemoryRouter>
+        <ClientHeader
+          status="ready"
+          playerName="pilot42"
+          planetName="Planet 1"
+          planetTo="/"
+        />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByRole('link', { name: 'Planet 1' })).toHaveAttribute('href', '/');
   });
 });

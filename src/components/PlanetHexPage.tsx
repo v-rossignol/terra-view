@@ -1,10 +1,14 @@
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { useCallback } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { usePlanetHex } from '../hooks/usePlanetHex';
 import type { HexCoords } from '../types/planet';
+import type { UnitInstance } from '../types/unit';
 import { formatHexCoords } from '../utils/hexCoords';
+import { LOGIN_PATH } from '../utils/authErrors';
 import { SingleHexView } from './game/SingleHexView';
+import { ClientHeader } from './ui/ClientHeader';
 import { HexResourcesPanel } from './ui/HexResourcesPanel';
+import { UnitPanel } from './ui/UnitPanel';
 
 const layoutStyle: React.CSSProperties = {
   height: '100dvh',
@@ -14,17 +18,6 @@ const layoutStyle: React.CSSProperties = {
   fontFamily: 'system-ui, sans-serif',
   backgroundColor: '#0f0f0f',
   color: '#f0f0f0',
-};
-
-const headerStyle: React.CSSProperties = {
-  display: 'flex',
-  alignItems: 'center',
-  gap: '0.75rem',
-  minHeight: '3rem',
-  padding: '0 1.25rem',
-  borderBottom: '1px solid #2a2a2a',
-  backgroundColor: '#141414',
-  fontSize: '0.9375rem',
 };
 
 const contentStyle: React.CSSProperties = {
@@ -76,8 +69,35 @@ const metaStyle: React.CSSProperties = {
 export function PlanetHexPage() {
   const navigate = useNavigate();
   const { planetId, q, r } = useParams();
-  const { status, planetName, coords, hex, neighbors, hexResources, error, planetRadius } =
-    usePlanetHex(planetId, q, r);
+  const {
+    status,
+    planetName,
+    coords,
+    hex,
+    neighbors,
+    hexResources,
+    playerId,
+    playerName,
+    starName,
+    starSystemHref,
+    planetUnits,
+    error,
+    planetRadius,
+  } = usePlanetHex(planetId, q, r);
+  const [selectedUnitId, setSelectedUnitId] = useState<string | null>(null);
+
+  useEffect(() => {
+    setSelectedUnitId(null);
+  }, [coords?.q, coords?.r]);
+
+  const selectedUnit = useMemo(
+    () => planetUnits.find((unit) => unit.id === selectedUnitId) ?? null,
+    [planetUnits, selectedUnitId],
+  );
+
+  const handleUnitSelect = useCallback((unit: UnitInstance) => {
+    setSelectedUnitId((current) => (current === unit.id ? null : unit.id));
+  }, []);
 
   const handleNeighborClick = useCallback(
     (neighborCoords: HexCoords) => {
@@ -90,22 +110,26 @@ export function PlanetHexPage() {
     [navigate, planetId],
   );
 
-  const title =
-    planetName != null && coords != null
-      ? `${planetName} · Hex ${formatHexCoords(coords)}`
-      : coords != null
-        ? `Hex ${formatHexCoords(coords)}`
-        : 'Planet hex';
+  const headerStatus =
+    playerName != null && planetName != null
+      ? 'ready'
+      : status === 'loading'
+        ? 'loading'
+        : 'error';
+
+  const hexDetail = coords != null ? `Hex ${formatHexCoords(coords)}` : null;
 
   return (
     <div style={layoutStyle}>
-      <header style={headerStyle}>
-        <Link to="/" style={linkStyle}>
-          Terra View
-        </Link>
-        <span style={{ color: '#5a5a5a' }}>/</span>
-        <span>{title}</span>
-      </header>
+      <ClientHeader
+        playerName={playerName}
+        starName={starName}
+        starSystemHref={starSystemHref}
+        planetName={planetName}
+        planetTo="/"
+        detail={hexDetail}
+        status={headerStatus}
+      />
 
       <main style={status === 'ready' && hex != null ? contentStyle : centeredContentStyle}>
         {status === 'loading' && <p style={{ color: '#9a9a9a' }}>Loading hex…</p>}
@@ -115,9 +139,15 @@ export function PlanetHexPage() {
             <p style={errorStyle} role="alert">
               {error}
             </p>
-            <Link to="/" style={linkStyle}>
-              Back to planet surface
-            </Link>
+            {error.includes(LOGIN_PATH) ? (
+              <a href={LOGIN_PATH} style={linkStyle}>
+                Go to Stellar Gate
+              </a>
+            ) : (
+              <Link to="/" style={linkStyle}>
+                Back to planet surface
+              </Link>
+            )}
           </>
         )}
 
@@ -127,8 +157,13 @@ export function PlanetHexPage() {
               hex={hex}
               radius={planetRadius}
               neighbors={neighbors}
+              playerId={playerId ?? undefined}
+              planetUnits={planetUnits}
+              selectedUnitId={selectedUnitId}
+              onUnitSelect={handleUnitSelect}
               onNeighborClick={handleNeighborClick}
             />
+            <UnitPanel unit={selectedUnit} />
             <aside style={metaStyle}>
               <p style={{ margin: '0 0 0.35rem', fontWeight: 600 }}>{hex.biome}</p>
               <p style={{ margin: 0, color: '#b0b0b0' }}>Danger level: {hex.dangerLevel}</p>

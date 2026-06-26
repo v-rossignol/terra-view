@@ -1,11 +1,31 @@
 import type { CanEnterResponse } from '../types/api';
-import type { EnterGameResponse, HexCoords } from '../types/player';
+import type { EnterGameResponse, HexCoords, Player } from '../types/player';
+import { isUnauthorizedError } from '../utils/authErrors';
+import { authService } from './authService';
 import { api } from './api';
 
 export const playerService = {
   async enterGame(): Promise<EnterGameResponse> {
     const response = await api.post<EnterGameResponse>('/players/me/enter-game');
     return response.data;
+  },
+
+  async getPlayerByUserId(userId: string): Promise<Player> {
+    const response = await api.get<Player>(`/players/${encodeURIComponent(userId)}`);
+    return response.data;
+  },
+
+  async getCurrentPlayerSession(): Promise<{ playerId: string; playerName: string } | null> {
+    try {
+      const user = await authService.getCurrentUser();
+      const player = await this.getPlayerByUserId(user.id);
+      return { playerId: player.id, playerName: user.username };
+    } catch (error) {
+      if (isUnauthorizedError(error)) {
+        throw error;
+      }
+      return null;
+    }
   },
 
   async relocateToPlanet(planetId: string, hex_coords?: HexCoords): Promise<EnterGameResponse> {

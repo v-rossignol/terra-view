@@ -6,6 +6,7 @@ import { authService } from '@services/authService';
 import { playerService } from '@services/playerService';
 import { planetService } from '@services/planetService';
 import { starSystemService } from '@services/starSystemService';
+import { unitService } from '@services/unitService';
 
 vi.mock('@services/authService', () => ({
   authService: {
@@ -33,10 +34,17 @@ vi.mock('@services/starSystemService', () => ({
   },
 }));
 
+vi.mock('@services/unitService', () => ({
+  unitService: {
+    listPlanetUnits: vi.fn(),
+  },
+}));
+
 const mockedAuth = vi.mocked(authService);
 const mockedPlayer = vi.mocked(playerService);
 const mockedPlanet = vi.mocked(planetService);
 const mockedStarSystem = vi.mocked(starSystemService);
+const mockedUnits = vi.mocked(unitService);
 
 const planetLocation = {
   cube: { id: 'cube-1' },
@@ -59,6 +67,7 @@ const createAxiosError = (status: number): AxiosError => {
 describe('useFirstPageBootstrap', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockedUnits.listPlanetUnits.mockResolvedValue([]);
   });
 
   it('loads player and planet names when session is valid', async () => {
@@ -97,6 +106,7 @@ describe('useFirstPageBootstrap', () => {
 
     expect(result.current.status).toBe('ready');
     expect(result.current.playerName).toBe('pilot42');
+    expect(result.current.playerId).toBe('player-1');
     expect(result.current.starName).toBe('Alpha Centauri');
     expect(result.current.starSystemHref).toBe('/solaris/system-1');
     expect(result.current.planetName).toBe('Planet 1');
@@ -108,8 +118,10 @@ describe('useFirstPageBootstrap', () => {
       radius: 5,
     });
     expect(result.current.playerHex).toEqual({ q: 1, r: 2 });
+    expect(result.current.planetUnits).toEqual([]);
     expect(result.current.error).toBeNull();
     expect(mockedStarSystem.getStarSystem).toHaveBeenCalledWith('system-1');
+    expect(mockedUnits.listPlanetUnits).toHaveBeenCalledWith('planet-1');
     expect(mockedPlayer.canEnterStarSystem).toHaveBeenCalledWith('system-1');
     expect(mockedPlayer.updatePlanetHex).not.toHaveBeenCalled();
   });
