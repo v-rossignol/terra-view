@@ -11,6 +11,7 @@ import { useFollowSelectedMovingUnit } from '../hooks/useFollowSelectedMovingUni
 import { formatHexCoords } from '../utils/hexCoords';
 import { LOGIN_PATH } from '../utils/authErrors';
 import { getMoveErrorMessage } from '../utils/moveErrors';
+import { getStopErrorMessage } from '../utils/stopErrors';
 import { SingleHexView, type MoveDestination } from './game/SingleHexView';
 import { ClientHeader } from './ui/ClientHeader';
 import { HexResourcesPanel } from './ui/HexResourcesPanel';
@@ -98,6 +99,7 @@ export function PlanetHexPage() {
   const [pendingMoveDestination, setPendingMoveDestination] = useState<MoveDestination | null>(null);
   const [moveError, setMoveError] = useState<string | null>(null);
   const [isSubmittingMove, setIsSubmittingMove] = useState(false);
+  const [isSubmittingStop, setIsSubmittingStop] = useState(false);
   const [movementTracks, setMovementTracks] = useState<Record<string, UnitMovementTrack>>({});
   const selectedUnitIdRef = useRef<string | null>(null);
   const handleSocketUnitUpdate = useCallback((payload: UnitUpdatePayload) => {
@@ -206,6 +208,24 @@ export function PlanetHexPage() {
     setMoveError(null);
     setMoveModeActive((current) => !current);
   }, []);
+
+  const handleStopClick = useCallback(() => {
+    if (selectedUnitId == null || planetId == null || isSubmittingStop) {
+      return;
+    }
+
+    setMoveError(null);
+    setIsSubmittingStop(true);
+
+    void unitService
+      .stopUnit(selectedUnitId, { planetId })
+      .catch((error: unknown) => {
+        setMoveError(getStopErrorMessage(error));
+      })
+      .finally(() => {
+        setIsSubmittingStop(false);
+      });
+  }, [selectedUnitId, planetId, isSubmittingStop]);
 
   const handleMoveDestinationSelect = useCallback(
     (hex_coords: HexCoords, position: Vec2Local) => {
@@ -337,7 +357,9 @@ export function PlanetHexPage() {
               moveModeActive={moveModeActive}
               moveError={moveError}
               moveDisabled={isSubmittingMove || selectedUnit?.status === 'moving'}
+              stopDisabled={isSubmittingStop}
               onMoveClick={handleMoveClick}
+              onStopClick={handleStopClick}
             />
             <aside style={metaStyle}>
               <p style={{ margin: '0 0 0.35rem', fontWeight: 600 }}>{hex.biome}</p>

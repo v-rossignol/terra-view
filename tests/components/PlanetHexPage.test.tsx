@@ -81,6 +81,7 @@ vi.mock('@components/game/SingleHexView', () => ({
 vi.mock('@services/unitService', () => ({
   unitService: {
     startMove: vi.fn(),
+    stopUnit: vi.fn(),
   },
 }));
 
@@ -89,6 +90,7 @@ import { unitService } from '@services/unitService';
 
 const mockedHook = vi.mocked(usePlanetHex);
 const mockedStartMove = vi.mocked(unitService.startMove);
+const mockedStopUnit = vi.mocked(unitService.stopUnit);
 
 const mobileUnit = {
   id: 'unit-1',
@@ -455,6 +457,103 @@ describe('PlanetHexPage', () => {
 
     await waitFor(() => {
       expect(screen.getByRole('alert')).toHaveTextContent('Target hex is out of range.');
+    });
+  });
+
+  it('sends a stop order when Stop is clicked on a moving vehicule', async () => {
+    mockedStopUnit.mockResolvedValue({
+      unitId: 'unit-1',
+      status: 'idle',
+    });
+
+    mockedHook.mockReturnValue({
+      status: 'ready',
+      planetName: 'Astra Prime',
+      planetRadius: 10,
+      coords: { q: 2, r: 3 },
+      hex: {
+        biome: 'forest',
+        resources: [],
+        dangerLevel: 4,
+        coordinates: { q: 2, r: 3 },
+      },
+      neighbors: [],
+      hexResources: null,
+      playerId: 'player-1',
+      playerName: 'Ada',
+      starName: 'Sol',
+      starSystemHref: '/solaris/system-1',
+      planetUnits: [{ ...mobileUnit, status: 'moving' }],
+      error: null,
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/planet-1/2/3']}>
+        <Routes>
+          <Route path="/:planetId/:q/:r" element={<PlanetHexPage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(screen.getByTestId('select-unit'));
+    fireEvent.click(screen.getByRole('button', { name: 'Stop' }));
+
+    await waitFor(() => {
+      expect(mockedStopUnit).toHaveBeenCalledWith('unit-1', { planetId: 'planet-1' });
+    });
+  });
+
+  it('shows a stop error when the server rejects the order', async () => {
+    mockedStopUnit.mockRejectedValue(
+      new axios.AxiosError(
+        'Request failed',
+        '409',
+        undefined,
+        undefined,
+        {
+          status: 409,
+          statusText: 'Conflict',
+          headers: {},
+          config: { headers: new axios.AxiosHeaders() },
+          data: { statusCode: 409, message: 'Unit is not moving.' },
+        },
+      ),
+    );
+
+    mockedHook.mockReturnValue({
+      status: 'ready',
+      planetName: 'Astra Prime',
+      planetRadius: 10,
+      coords: { q: 2, r: 3 },
+      hex: {
+        biome: 'forest',
+        resources: [],
+        dangerLevel: 4,
+        coordinates: { q: 2, r: 3 },
+      },
+      neighbors: [],
+      hexResources: null,
+      playerId: 'player-1',
+      playerName: 'Ada',
+      starName: 'Sol',
+      starSystemHref: '/solaris/system-1',
+      planetUnits: [{ ...mobileUnit, status: 'moving' }],
+      error: null,
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/planet-1/2/3']}>
+        <Routes>
+          <Route path="/:planetId/:q/:r" element={<PlanetHexPage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(screen.getByTestId('select-unit'));
+    fireEvent.click(screen.getByRole('button', { name: 'Stop' }));
+
+    await waitFor(() => {
+      expect(screen.getByRole('alert')).toHaveTextContent('Unit is not moving.');
     });
   });
 });

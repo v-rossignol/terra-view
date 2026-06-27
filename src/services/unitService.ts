@@ -1,4 +1,4 @@
-import type { MoveOrderResult, MoveUnitRequest, UnitInstance } from '../types/unit';
+import type { MoveOrderResult, MoveUnitRequest, StopOrderResult, StopUnitRequest, UnitInstance } from '../types/unit';
 import { api } from './api';
 
 export const unitService = {
@@ -10,6 +10,14 @@ export const unitService = {
   async startMove(unitId: string, request: MoveUnitRequest): Promise<MoveOrderResult> {
     const response = await api.post<MoveOrderResult>(
       `/players/me/units/${encodeURIComponent(unitId)}/move`,
+      request,
+    );
+    return response.data;
+  },
+
+  async stopUnit(unitId: string, request: StopUnitRequest): Promise<StopOrderResult> {
+    const response = await api.post<StopOrderResult>(
+      `/players/me/units/${encodeURIComponent(unitId)}/stop`,
       request,
     );
     return response.data;

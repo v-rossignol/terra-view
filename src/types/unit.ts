@@ -25,6 +25,15 @@ export interface MoveOrderResult {
   distance: number;
 }
 
+export interface StopUnitRequest {
+  planetId: string;
+}
+
+export interface StopOrderResult {
+  unitId: string;
+  status: 'idle';
+}
+
 /** Server-persisted movement state (`unit.metadata.movement`). */
 export interface UnitMovementMetadata {
   targetHex: HexCoords;
