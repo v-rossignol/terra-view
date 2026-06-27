@@ -1,14 +1,21 @@
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { usePlanetHex } from '../hooks/usePlanetHex';
+import { usePlanetUnitsWithSocket } from '../hooks/usePlanetSocket';
+import { unitService } from '../services/unitService';
 import type { HexCoords } from '../types/planet';
+import type { UnitUpdatePayload } from '../types/socket';
 import type { UnitInstance } from '../types/unit';
 import { formatHexCoords } from '../utils/hexCoords';
 import { LOGIN_PATH } from '../utils/authErrors';
-import { SingleHexView } from './game/SingleHexView';
+import { getMoveErrorMessage } from '../utils/moveErrors';
+import { SingleHexView, type MoveDestination } from './game/SingleHexView';
 import { ClientHeader } from './ui/ClientHeader';
 import { HexResourcesPanel } from './ui/HexResourcesPanel';
 import { UnitPanel } from './ui/UnitPanel';
+import type { Vec2Local } from '../types/player';
+import { getUnitHexCoords } from '../utils/unitLocation';
+import { getBiomeAllowedMoveDestinationHexes } from '../utils/unitMovement';
 
 const layoutStyle: React.CSSProperties = {
   height: '100dvh',
@@ -85,19 +92,118 @@ export function PlanetHexPage() {
     planetRadius,
   } = usePlanetHex(planetId, q, r);
   const [selectedUnitId, setSelectedUnitId] = useState<string | null>(null);
+  const [moveModeActive, setMoveModeActive] = useState(false);
+  const [pendingMoveDestination, setPendingMoveDestination] = useState<MoveDestination | null>(null);
+  const [moveError, setMoveError] = useState<string | null>(null);
+  const [isSubmittingMove, setIsSubmittingMove] = useState(false);
+  const selectedUnitIdRef = useRef<string | null>(null);
+  const handleSocketUnitUpdate = useCallback((payload: UnitUpdatePayload) => {
+    if (payload.unitId === selectedUnitIdRef.current && payload.status === 'idle') {
+      setPendingMoveDestination(null);
+    }
+  }, []);
+  const { units: displayUnits, patchUnit } = usePlanetUnitsWithSocket(
+    planetId,
+    planetUnits,
+    handleSocketUnitUpdate,
+  );
 
   useEffect(() => {
     setSelectedUnitId(null);
+    setMoveModeActive(false);
+    setPendingMoveDestination(null);
+    setMoveError(null);
   }, [coords?.q, coords?.r]);
 
+  useEffect(() => {
+    if (!moveModeActive) {
+      return;
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setMoveModeActive(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [moveModeActive]);
+
   const selectedUnit = useMemo(
-    () => planetUnits.find((unit) => unit.id === selectedUnitId) ?? null,
-    [planetUnits, selectedUnitId],
+    () => displayUnits.find((unit) => unit.id === selectedUnitId) ?? null,
+    [displayUnits, selectedUnitId],
   );
 
+  selectedUnitIdRef.current = selectedUnitId;
+
   const handleUnitSelect = useCallback((unit: UnitInstance) => {
-    setSelectedUnitId((current) => (current === unit.id ? null : unit.id));
+    setMoveError(null);
+    setSelectedUnitId((current) => {
+      const next = current === unit.id ? null : unit.id;
+      if (next == null) {
+        setMoveModeActive(false);
+        setPendingMoveDestination(null);
+      }
+      return next;
+    });
   }, []);
+
+  const handleMoveClick = useCallback(() => {
+    setMoveError(null);
+    setMoveModeActive((current) => !current);
+  }, []);
+
+  const handleMoveDestinationSelect = useCallback(
+    (hex_coords: HexCoords, position: Vec2Local) => {
+      if (selectedUnitId == null || planetId == null || isSubmittingMove) {
+        return;
+      }
+
+      setMoveError(null);
+      setPendingMoveDestination({ hex_coords, position });
+      setMoveModeActive(false);
+      setIsSubmittingMove(true);
+
+      void unitService
+        .startMove(selectedUnitId, {
+          planetId,
+          targetHex: hex_coords,
+          targetPosition: position,
+        })
+        .then(() => {
+          if (selectedUnit != null) {
+            patchUnit({
+              unitId: selectedUnitId,
+              status: 'moving',
+              location: selectedUnit.location,
+            });
+          }
+        })
+        .catch((error: unknown) => {
+          setPendingMoveDestination(null);
+          setMoveError(getMoveErrorMessage(error));
+        })
+        .finally(() => {
+          setIsSubmittingMove(false);
+        });
+    },
+    [selectedUnitId, selectedUnit, planetId, isSubmittingMove, patchUnit],
+  );
+
+  const validMoveHexes = useMemo(() => {
+    if (selectedUnit == null || coords == null || planetRadius == null || hex == null) {
+      return [];
+    }
+
+    const origin = getUnitHexCoords(selectedUnit) ?? coords;
+    return getBiomeAllowedMoveDestinationHexes(
+      origin,
+      planetRadius,
+      [hex, ...neighbors],
+      selectedUnit.type.environments,
+    );
+  }, [selectedUnit, coords, planetRadius, hex, neighbors]);
 
   const handleNeighborClick = useCallback(
     (neighborCoords: HexCoords) => {
@@ -158,12 +264,22 @@ export function PlanetHexPage() {
               radius={planetRadius}
               neighbors={neighbors}
               playerId={playerId ?? undefined}
-              planetUnits={planetUnits}
+              planetUnits={displayUnits}
               selectedUnitId={selectedUnitId}
               onUnitSelect={handleUnitSelect}
               onNeighborClick={handleNeighborClick}
+              moveModeActive={moveModeActive}
+              validMoveHexes={validMoveHexes}
+              pendingMoveDestination={pendingMoveDestination}
+              onMoveDestinationSelect={handleMoveDestinationSelect}
             />
-            <UnitPanel unit={selectedUnit} />
+            <UnitPanel
+              unit={selectedUnit}
+              moveModeActive={moveModeActive}
+              moveError={moveError}
+              moveDisabled={isSubmittingMove || selectedUnit?.status === 'moving'}
+              onMoveClick={handleMoveClick}
+            />
             <aside style={metaStyle}>
               <p style={{ margin: '0 0 0.35rem', fontWeight: 600 }}>{hex.biome}</p>
               <p style={{ margin: 0, color: '#b0b0b0' }}>Danger level: {hex.dangerLevel}</p>

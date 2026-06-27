@@ -1,6 +1,6 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { ClientHeader } from '@components/ui/ClientHeader';
 
 describe('ClientHeader', () => {
@@ -92,5 +92,19 @@ describe('ClientHeader', () => {
     );
 
     expect(screen.getByRole('link', { name: 'Planet 1' })).toHaveAttribute('href', '/');
+  });
+
+  it('shows a reload button that refreshes the page', () => {
+    const reload = vi.fn();
+    Object.defineProperty(window, 'location', {
+      configurable: true,
+      value: { reload },
+    });
+
+    render(<ClientHeader status="loading" />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Reload page' }));
+
+    expect(reload).toHaveBeenCalledTimes(1);
   });
 });

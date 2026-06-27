@@ -67,6 +67,17 @@ describe('HexUnitMarkers', () => {
     expect(screen.getByRole('button', { name: 'Scout-X1' })).toHaveAttribute('aria-pressed', 'true');
   });
 
+  it('positions the unit marker from planet.position', () => {
+    const { container } = render(
+      <HexUnitMarkers units={[unit]} playerId="player-1" ownUnitMarker="sprite" />,
+    );
+
+    expect(container.querySelector('.hex-grid__unit')).toHaveStyle({
+      left: '20%',
+      top: '40%',
+    });
+  });
+
   it('uses a dot marker for own units on the planet grid', () => {
     const { container } = render(
       <HexUnitMarkers units={[unit]} playerId="player-1" ownUnitMarker="dot" />,
@@ -83,5 +94,52 @@ describe('HexUnitMarkers', () => {
 
     expect(container.querySelector('.hex-grid__unit--sprite')).toBeInTheDocument();
     expect(container.querySelector('.hex-grid__unit--own')).not.toBeInTheDocument();
+  });
+
+  it('marks moving vehicules with a moving class', () => {
+    const { container } = render(
+      <HexUnitMarkers
+        units={[{ ...unit, status: 'moving' }]}
+        playerId="player-1"
+        ownUnitMarker="sprite"
+      />,
+    );
+
+    expect(container.querySelector('.hex-grid__unit--moving')).toBeInTheDocument();
+  });
+
+  it('marks selected moving vehicules with both selected and moving classes', () => {
+    const { container } = render(
+      <HexUnitMarkers
+        units={[{ ...unit, status: 'moving' }]}
+        playerId="player-1"
+        ownUnitMarker="sprite"
+        selectable
+        selectedUnitId="unit-1"
+        onUnitSelect={vi.fn()}
+      />,
+    );
+
+    const marker = container.querySelector('.hex-grid__unit');
+    expect(marker).toHaveClass('hex-grid__unit--selected');
+    expect(marker).toHaveClass('hex-grid__unit--moving');
+  });
+
+  it('does not mark moving buildings with a moving class', () => {
+    const { container } = render(
+      <HexUnitMarkers
+        units={[
+          {
+            ...unit,
+            status: 'moving',
+            type: { ...unit.type, type: 'building' },
+          },
+        ]}
+        playerId="player-1"
+        ownUnitMarker="sprite"
+      />,
+    );
+
+    expect(container.querySelector('.hex-grid__unit--moving')).not.toBeInTheDocument();
   });
 });

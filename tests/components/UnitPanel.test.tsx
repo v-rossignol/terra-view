@@ -1,5 +1,5 @@
-import { render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { fireEvent, render, screen } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
 import { UnitPanel } from '@components/ui/UnitPanel';
 import type { UnitInstance } from '../../src/types/unit';
 
@@ -126,5 +126,56 @@ describe('UnitPanel', () => {
     expect(screen.getByRole('button', { name: 'Extract' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Move' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Cargo' })).not.toBeInTheDocument();
+  });
+
+  it('shows moving status in green', () => {
+    render(<UnitPanel unit={{ ...unit, status: 'moving' }} />);
+
+    expect(screen.getByText('Moving')).toHaveStyle({ color: 'rgb(107, 207, 127)' });
+  });
+
+  it('shows a Stop button when a vehicule is moving', () => {
+    const onStopClick = vi.fn();
+
+    render(<UnitPanel unit={{ ...unit, status: 'moving' }} onStopClick={onStopClick} />);
+
+    const stopButton = screen.getByRole('button', { name: 'Stop' });
+    expect(stopButton).toBeInTheDocument();
+
+    fireEvent.click(stopButton);
+    expect(onStopClick).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not show a Stop button for idle vehicules', () => {
+    render(<UnitPanel unit={{ ...unit, status: 'idle' }} onStopClick={vi.fn()} />);
+
+    expect(screen.queryByRole('button', { name: 'Stop' })).not.toBeInTheDocument();
+  });
+
+  it('does not show a Stop button for moving buildings', () => {
+    render(
+      <UnitPanel
+        unit={{
+          ...unit,
+          status: 'moving',
+          type: { ...unit.type, type: 'building' },
+        }}
+        onStopClick={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByRole('button', { name: 'Stop' })).not.toBeInTheDocument();
+  });
+
+  it('calls onMoveClick and reflects move mode active state', () => {
+    const onMoveClick = vi.fn();
+
+    render(<UnitPanel unit={unit} moveModeActive onMoveClick={onMoveClick} />);
+
+    const moveButton = screen.getByRole('button', { name: 'Move' });
+    expect(moveButton).toHaveAttribute('aria-pressed', 'true');
+
+    fireEvent.click(moveButton);
+    expect(onMoveClick).toHaveBeenCalledTimes(1);
   });
 });

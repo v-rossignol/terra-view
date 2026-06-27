@@ -1,8 +1,29 @@
-import type { Location } from './player';
+import type { HexCoords, Location, Vec2Local } from './player';
 
 export type UnitCategory = 'vehicule' | 'building';
 export type UnitSize = 'small' | 'medium' | 'large';
-export type UnitInstanceStatus = 'inactive' | 'active' | 'destroyed';
+export type UnitInstanceStatus = 'idle' | 'moving' | 'inactive' | 'active' | 'destroyed';
+
+export interface MoveUnitRequest {
+  planetId: string;
+  targetHex: HexCoords;
+  targetPosition?: Vec2Local;
+}
+
+export interface MoveSurfacePoint {
+  hex: HexCoords;
+  position: Vec2Local;
+}
+
+export interface MoveOrderResult {
+  unitId: string;
+  status: 'moving';
+  startAt: string;
+  arrivalAt: string;
+  origin: MoveSurfacePoint;
+  destination: MoveSurfacePoint;
+  distance: number;
+}
 
 export interface UnitType {
   id: string;

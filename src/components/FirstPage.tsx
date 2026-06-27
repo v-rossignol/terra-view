@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useFirstPageBootstrap } from '../hooks/useFirstPageBootstrap';
+import { usePlanetUnitsWithSocket } from '../hooks/usePlanetSocket';
 import type { HexCoords } from '../types/planet';
 import { HexGrid } from './game/HexGrid';
 import { ClientHeader } from './ui/ClientHeader';
@@ -46,6 +47,7 @@ export function FirstPage() {
   const navigate = useNavigate();
   const { status, playerName, playerId, starName, starSystemHref, planetName, planet, planetUnits, error } =
     useFirstPageBootstrap();
+  const { units: displayUnits } = usePlanetUnitsWithSocket(planet?._id, planetUnits);
 
   const handleHexClick = useCallback(
     (coords: HexCoords) => {
@@ -88,7 +90,7 @@ export function FirstPage() {
             radius={planet.radius}
             hexagons={planet.surface?.hexagons}
             playerId={playerId ?? undefined}
-            planetUnits={planetUnits}
+            planetUnits={displayUnits}
             onHexClick={handleHexClick}
           />
         )}

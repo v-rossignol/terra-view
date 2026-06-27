@@ -35,7 +35,9 @@ const actionsStyle: React.CSSProperties = {
 const actionButtonStyle: React.CSSProperties = {
   padding: '0.25rem 0.5rem',
   borderRadius: '4px',
-  border: '1px solid #3a3a3a',
+  borderWidth: '1px',
+  borderStyle: 'solid',
+  borderColor: '#3a3a3a',
   backgroundColor: '#2a2a2a',
   color: '#e0e0e0',
   fontSize: '0.75rem',
@@ -75,6 +77,14 @@ const mutedStyle: React.CSSProperties = {
 
 function formatStatus(status: UnitInstanceStatus): string {
   return status.charAt(0).toUpperCase() + status.slice(1);
+}
+
+function getStatusColor(status: UnitInstanceStatus): string {
+  if (status === 'moving') {
+    return '#6bcf7f';
+  }
+
+  return '#e0e0e0';
 }
 
 function formatSpeed(speed: number | null, mobility: boolean): string {
@@ -133,11 +143,56 @@ function getCapabilityEntries(capabilities: Record<string, unknown>): string[] {
     .filter((entry): entry is string => entry != null);
 }
 
+const actionButtonActiveStyle: React.CSSProperties = {
+  borderColor: '#7eb8ff',
+  backgroundColor: '#1a2a3a',
+  color: '#7eb8ff',
+};
+
+const actionButtonDisabledStyle: React.CSSProperties = {
+  opacity: 0.55,
+  cursor: 'not-allowed',
+};
+
+const statusRowStyle: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  flexWrap: 'wrap',
+  gap: '0.5rem',
+};
+
+const stopButtonStyle: React.CSSProperties = {
+  ...actionButtonStyle,
+  borderColor: '#6bcf7f',
+  color: '#6bcf7f',
+};
+
+const moveErrorStyle: React.CSSProperties = {
+  margin: '0.5rem 0 0',
+  color: '#ff6b6b',
+  fontSize: '0.75rem',
+  lineHeight: 1.35,
+};
+
 export interface UnitPanelProps {
   unit: UnitInstance | null;
+  moveModeActive?: boolean;
+  moveError?: string | null;
+  moveDisabled?: boolean;
+  stopDisabled?: boolean;
+  onMoveClick?: () => void;
+  onStopClick?: () => void;
 }
 
-export function UnitPanel({ unit }: UnitPanelProps) {
+export function UnitPanel({
+  unit,
+  moveModeActive = false,
+  moveError = null,
+  moveDisabled = false,
+  stopDisabled = false,
+  onMoveClick,
+  onStopClick,
+}: UnitPanelProps) {
   if (unit == null) {
     return null;
   }
@@ -147,12 +202,25 @@ export function UnitPanel({ unit }: UnitPanelProps) {
   const showSeeCargo = hasCargoCapability(unit.type.capabilities);
   const showExtract = hasExtractionCapability(unit.type.capabilities);
   const showActions = showMoveTo || showSeeCargo || showExtract;
+  const showStop = unit.status === 'moving' && unit.type.type === 'vehicule';
 
   return (
     <aside style={panelStyle} aria-label="Unit panel">
       <p style={titleStyle}>{unit.type.name}</p>
-      <p style={metaStyle}>
-        Status: <strong style={{ color: '#e0e0e0' }}>{formatStatus(unit.status)}</strong>
+      <p style={{ ...metaStyle, ...statusRowStyle }}>
+        <span>
+          Status: <strong style={{ color: getStatusColor(unit.status) }}>{formatStatus(unit.status)}</strong>
+        </span>
+        {showStop ? (
+          <button
+            type="button"
+            style={stopDisabled ? { ...stopButtonStyle, ...actionButtonDisabledStyle } : stopButtonStyle}
+            disabled={stopDisabled}
+            onClick={onStopClick}
+          >
+            Stop
+          </button>
+        ) : null}
       </p>
       <p style={metaStyle}>
         Speed: <strong style={{ color: '#e0e0e0' }}>{formatSpeed(unit.type.speed, unit.type.mobility)}</strong>
@@ -172,7 +240,19 @@ export function UnitPanel({ unit }: UnitPanelProps) {
       {showActions ? (
         <div style={actionsStyle}>
           {showMoveTo ? (
-            <button type="button" style={actionButtonStyle}>
+            <button
+              type="button"
+              style={
+                moveModeActive
+                  ? { ...actionButtonStyle, ...actionButtonActiveStyle }
+                  : moveDisabled
+                    ? { ...actionButtonStyle, ...actionButtonDisabledStyle }
+                    : actionButtonStyle
+              }
+              aria-pressed={moveModeActive}
+              disabled={moveDisabled}
+              onClick={onMoveClick}
+            >
               Move
             </button>
           ) : null}
@@ -187,6 +267,11 @@ export function UnitPanel({ unit }: UnitPanelProps) {
             </button>
           ) : null}
         </div>
+      ) : null}
+      {moveError != null ? (
+        <p style={moveErrorStyle} role="alert">
+          {moveError}
+        </p>
       ) : null}
     </aside>
   );

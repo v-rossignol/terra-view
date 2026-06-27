@@ -31,32 +31,33 @@ After changes, run `npm run build` and `npm run test`.
 
 ## Project structure
 
-Current scaffold (early stage):
-
 ```
 src/
-├── App.tsx              # Root component (placeholder)
+├── App.tsx              # Root component, React Router routes
 ├── main.tsx             # React entry point
-└── vite-env.d.ts
-index.html
-vite.config.ts           # base: /terra-view/, dev proxy to :4000
+├── index.css
+├── vite-env.d.ts
+├── assets/              # Tilesets (biomes) and unit sprites
+│   ├── tilesets/
+│   └── units/
+├── components/          # React pages and UI overlays
+│   ├── game/            # CSS hex grid, unit markers
+│   └── ui/              # Header, resource panel, unit panel
+├── config/              # App-level configuration (logger)
+├── hooks/               # Custom React hooks
+├── services/            # Axios REST services + Socket.IO service
+├── types/               # TypeScript interfaces (one file per domain)
+└── utils/               # Pure functions — hex math, error mapping, assets
 ```
 
-target stage:
+Planned additions:
 
 ```
 src/
-├── assets/              # Static resources, tilesets, sprites
-├── components/          # React UI + PixiJS canvas wrappers
-│   ├── ui/              # HUD, menus, inventory
-│   └── game/            # PlanetMap, Player, Resource
-├── hooks/               # useSocket, usePlanetMap, etc.
-├── stores/              # Zustand (gameStore, uiStore)
-├── types/               # game, socket, API types
-├── utils/               # Coordinate math, helpers
-├── App.tsx
-└── main.tsx
+└── stores/              # Zustand (gameStore, uiStore) — not yet created
 ```
+
+PixiJS (`pixi.js` dependency declared) will replace the CSS hex grid in `components/game/` when rendering performance requires it.
 
 ---
 
@@ -64,13 +65,18 @@ src/
 
 | Area | Client | Server |
 |------|--------|--------|
-| App scaffold | React + Vite placeholder | — |
-| PixiJS map rendering | Not started | — |
-| Planet data fetch | Not started | `GET /infinity/planets/:planetId` |
-| Resources | Not started | `GET /infinity/resources/planet/:planetId` |
-| Real-time sync | Not started | Socket.IO `PLANET_JOIN`, `PLANET_MOVE` |
-| Auth / session | Not started | Cookie-based (`infinity_token`) — see [../contracts/auth-api.yaml](../contracts/auth-api.yaml) |
-| Upstream navigation | Planned from `/solaris/` | Galaxy View and Solar System View not in repo yet |
+| App scaffold + routing | React Router 6, 4 routes | — |
+| Hex map rendering | CSS hex grid (PixiJS not yet) | — |
+| Planet data fetch | Implemented (`planetService`) | `GET /infinity/planets/:planetId` |
+| Hex resources | Implemented — hover panel | `GET /infinity/resources/planet/:planetId/hex/:q/:r` |
+| Units — list | Implemented | `GET /infinity/planets/:planetId/units` |
+| Units — move | Implemented | `POST /infinity/players/me/units/:id/move` |
+| Real-time sync | `UNIT_UPDATE` via Socket.IO | `PLANET_JOIN`, `PLANET_LEAVE`, `UNIT_UPDATE` |
+| Auth / session | Cookie via `withCredentials` | Cookie-based (`infinity_token`) — see [../contracts/auth-api.yaml](../contracts/auth-api.yaml) |
+| Admin planet modeler | Preview generation UI | `GET /infinity/admin/planets/generate` |
+| Zustand stores | Not started | — |
+| PixiJS rendering | Not started (CSS grid today) | — |
+| Upstream navigation | Link to `/solaris/` (gated) | `GET /infinity/players/me/can-enter-star-system` |
 
 Planet domain model: hexagonal toroidal surface.
 
@@ -88,14 +94,13 @@ Planet domain model: hexagonal toroidal surface.
 ### Coordinates
 
 - Server uses a **hexagonal grid** (`q`/`r` or `planetX`/`planetY`) on a toroidal surface — not latitude/longitude.
-- Client must convert between hex coordinates and screen pixels
+- Client hex coordinate conventions: see [rules/coding.md §11](rules/coding.md).
 
 ### API and real-time
 
 - REST base path: `/infinity/*` (Vite dev proxy forwards to `:4000`).
-- Use `withCredentials: true` on HTTP clients when auth cookies are required.
 - Do **not** store JWT in `localStorage`, `sessionStorage`, or JS state.
-- Socket.IO client integration is planned; event names and payloads follow server gateway conventions.
+- Socket.IO event names and payloads follow server gateway conventions — see [../contracts/asyncapi.yaml](../contracts/asyncapi.yaml).
 
 ### Layering
 
@@ -111,7 +116,7 @@ Planet domain model: hexagonal toroidal surface.
 
 ## Document conventions
 
-Shared monorepo standards: [../rules/documents.md](../rules/documents.md).
+Shared monorepo standards: [../rules/documents.md](../rules/documents.md). Coding conventions: [rules/coding.md](rules/coding.md).
 
 **Working directory:** Do not read, search, or follow links into any `documentation/` directory (monorepo root, this sub-project, or another sub-project) unless the user explicitly references a path. Links elsewhere in this file are pointers for the user — use `../contracts/` and source code for implementation context.
 
@@ -121,8 +126,8 @@ Do not create documentation files unless explicitly requested.
 
 ## Code style
 
-- TypeScript strict mode — no `any` unless unavoidable; prefer explicit interfaces in `src/types/`.
-- Functional components and hooks only.
+See [rules/coding.md](rules/coding.md) for full coding conventions. Agent-specific rules:
+
 - Keep diffs minimal; match existing patterns before introducing new abstractions.
 - UI copy and code identifiers are in **English**.
 
@@ -162,6 +167,7 @@ Do not commit secrets (`.env`, credentials). Do not create git commits unless ex
 
 Index for human navigation and explicit user references — **not** for agent auto-discovery.
 
+- [rules/coding.md](rules/coding.md) — Coding conventions for this project
 - [../contracts/client-terra-view.yaml](../contracts/client-terra-view.yaml) — Client API integration contract
 - [../documentation/TO-BE-FIXED.md](../documentation/TO-BE-FIXED.md) — Cross-project deferred fixes
 - [README.md](README.md) — Quick start

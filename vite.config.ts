@@ -30,6 +30,7 @@ export default defineConfig({
       '/infinity': {
         target: 'http://localhost:4000',
         changeOrigin: true,
+        ws: true,
       },
     },
   },

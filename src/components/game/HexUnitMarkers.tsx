@@ -1,4 +1,6 @@
 import type { UnitInstance } from '../../types/unit';
+import { hexLocalPositionToPercent } from '../../utils/hexLocalPosition';
+import { getUnitHexLocalPosition } from '../../utils/unitLocation';
 import { getUnitSprite } from '../../utils/unitSprites';
 
 export interface HexUnitMarkersProps {
@@ -33,12 +35,14 @@ export function HexUnitMarkers({
         const useOwnDot = isOwnUnit && ownUnitMarker === 'dot';
         const sprite = useOwnDot ? undefined : getUnitSprite(unit.typeId);
         const isSelected = selectedUnitId === unit.id;
+        const isMovingVehicule = unit.status === 'moving' && unit.type.type === 'vehicule';
         const unitClassName = [
           'hex-grid__unit',
           useOwnDot ? 'hex-grid__unit--own' : '',
           sprite != null ? 'hex-grid__unit--sprite' : '',
           isSelected ? 'hex-grid__unit--selected' : '',
           selectable ? 'hex-grid__unit--selectable' : '',
+          isMovingVehicule ? 'hex-grid__unit--moving' : '',
           !useOwnDot && sprite == null && unit.type.type === 'building'
             ? 'hex-grid__unit--building'
             : !useOwnDot && sprite == null
@@ -48,9 +52,15 @@ export function HexUnitMarkers({
           .filter(Boolean)
           .join(' ');
 
+        const position = getUnitHexLocalPosition(unit) ?? { x: 0.5, y: 0.5 };
+        const { left, top } = hexLocalPositionToPercent(position);
         const commonProps = {
           className: unitClassName,
-          style: sprite != null ? { backgroundImage: `url(${sprite})` } : undefined,
+          style: {
+            left,
+            top,
+            ...(sprite != null ? { backgroundImage: `url(${sprite})` } : {}),
+          },
           title: unit.type.name,
           'aria-label': unit.type.name,
           'aria-pressed': selectable ? isSelected : undefined,
