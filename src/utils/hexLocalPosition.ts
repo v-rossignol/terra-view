@@ -28,6 +28,10 @@ function isPointInPolygon(x: number, y: number, polygon: ReadonlyArray<{ x: numb
   return inside;
 }
 
+export function isHexLocalPointInside(position: Vec2Local): boolean {
+  return isPointInPolygon(position.x, position.y, HEX_POLYGON_FRACTIONS);
+}
+
 export function clientPointToHexLocalPosition(
   cellElement: HTMLElement,
   clientX: number,

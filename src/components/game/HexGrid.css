@@ -216,3 +216,29 @@
   height: 2px;
   transform: translateY(-50%);
 }
+
+.hex-grid__moving-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 5;
+}
+
+.hex-grid__moving-paths {
+  position: absolute;
+  inset: 0;
+  overflow: visible;
+}
+
+.hex-grid__moving-path {
+  stroke: #6bcf7f;
+  stroke-width: 2;
+  stroke-dasharray: 6 4;
+  stroke-linecap: round;
+}
+
+.hex-grid__unit--overlay {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  z-index: 6;
+}

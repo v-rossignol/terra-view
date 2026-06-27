@@ -25,6 +25,22 @@ export interface MoveOrderResult {
   distance: number;
 }
 
+/** Server-persisted movement state (`unit.metadata.movement`). */
+export interface UnitMovementMetadata {
+  targetHex: HexCoords;
+  targetPosition: Vec2Local;
+  startedAt: string;
+  arrivalAt: string;
+}
+
+/** Client-side timeline for animating a unit between two surface points. */
+export interface UnitMovementTrack {
+  startAt: string;
+  arrivalAt: string;
+  origin: MoveSurfacePoint;
+  destination: MoveSurfacePoint;
+}
+
 export interface UnitType {
   id: string;
   name: string;

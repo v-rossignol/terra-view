@@ -5,7 +5,9 @@ import { usePlanetUnitsWithSocket } from '../hooks/usePlanetSocket';
 import { unitService } from '../services/unitService';
 import type { HexCoords } from '../types/planet';
 import type { UnitUpdatePayload } from '../types/socket';
-import type { UnitInstance } from '../types/unit';
+import type { UnitInstance, UnitMovementTrack } from '../types/unit';
+import { buildMovementTrackFromUnit, movementTrackFromMoveOrder } from '../utils/unitMovementTrack';
+import { useFollowSelectedMovingUnit } from '../hooks/useFollowSelectedMovingUnit';
 import { formatHexCoords } from '../utils/hexCoords';
 import { LOGIN_PATH } from '../utils/authErrors';
 import { getMoveErrorMessage } from '../utils/moveErrors';
@@ -96,8 +98,20 @@ export function PlanetHexPage() {
   const [pendingMoveDestination, setPendingMoveDestination] = useState<MoveDestination | null>(null);
   const [moveError, setMoveError] = useState<string | null>(null);
   const [isSubmittingMove, setIsSubmittingMove] = useState(false);
+  const [movementTracks, setMovementTracks] = useState<Record<string, UnitMovementTrack>>({});
   const selectedUnitIdRef = useRef<string | null>(null);
   const handleSocketUnitUpdate = useCallback((payload: UnitUpdatePayload) => {
+    if (payload.status !== 'moving') {
+      setMovementTracks((current) => {
+        if (current[payload.unitId] == null) {
+          return current;
+        }
+
+        const { [payload.unitId]: _removed, ...rest } = current;
+        return rest;
+      });
+    }
+
     if (payload.unitId === selectedUnitIdRef.current && payload.status === 'idle') {
       setPendingMoveDestination(null);
     }
@@ -109,11 +123,31 @@ export function PlanetHexPage() {
   );
 
   useEffect(() => {
-    setSelectedUnitId(null);
-    setMoveModeActive(false);
-    setPendingMoveDestination(null);
-    setMoveError(null);
-  }, [coords?.q, coords?.r]);
+    setMovementTracks((current) => {
+      let changed = false;
+      const next = { ...current };
+
+      for (const unit of displayUnits) {
+        if (unit.status === 'moving' && unit.type.type === 'vehicule' && next[unit.id] == null) {
+          const track = buildMovementTrackFromUnit(unit);
+          if (track != null) {
+            next[unit.id] = track;
+            changed = true;
+          }
+        }
+      }
+
+      for (const unitId of Object.keys(next)) {
+        const unit = displayUnits.find((candidate) => candidate.id === unitId);
+        if (unit == null || unit.status !== 'moving' || unit.type.type !== 'vehicule') {
+          delete next[unitId];
+          changed = true;
+        }
+      }
+
+      return changed ? next : current;
+    });
+  }, [displayUnits]);
 
   useEffect(() => {
     if (!moveModeActive) {
@@ -134,6 +168,25 @@ export function PlanetHexPage() {
     () => displayUnits.find((unit) => unit.id === selectedUnitId) ?? null,
     [displayUnits, selectedUnitId],
   );
+
+  const skipHexResetRef = useFollowSelectedMovingUnit({
+    planetId,
+    coords,
+    selectedUnit,
+    movementTracks,
+  });
+
+  useEffect(() => {
+    if (skipHexResetRef.current) {
+      skipHexResetRef.current = false;
+      return;
+    }
+
+    setSelectedUnitId(null);
+    setMoveModeActive(false);
+    setPendingMoveDestination(null);
+    setMoveError(null);
+  }, [coords?.q, coords?.r]);
 
   selectedUnitIdRef.current = selectedUnitId;
 
@@ -171,7 +224,12 @@ export function PlanetHexPage() {
           targetHex: hex_coords,
           targetPosition: position,
         })
-        .then(() => {
+        .then((result) => {
+          setMovementTracks((current) => ({
+            ...current,
+            [result.unitId]: movementTrackFromMoveOrder(result),
+          }));
+
           if (selectedUnit != null) {
             patchUnit({
               unitId: selectedUnitId,
@@ -271,6 +329,7 @@ export function PlanetHexPage() {
               moveModeActive={moveModeActive}
               validMoveHexes={validMoveHexes}
               pendingMoveDestination={pendingMoveDestination}
+              movementTracks={movementTracks}
               onMoveDestinationSelect={handleMoveDestinationSelect}
             />
             <UnitPanel

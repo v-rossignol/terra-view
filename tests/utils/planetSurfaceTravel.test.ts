@@ -1,0 +1,38 @@
+import { describe, expect, it } from 'vitest';
+import {
+  computeMovementProgress,
+  computeMovementWorldPosition,
+  planetSurfaceToWorldPoint,
+  worldPointToPlanetSurfacePoint,
+} from '@utils/planetSurfaceTravel';
+
+describe('planetSurfaceTravel', () => {
+  it('computes movement progress from startAt and arrivalAt', () => {
+    const startAt = '2026-01-01T00:00:00.000Z';
+    const arrivalAt = '2026-01-01T00:10:00.000Z';
+    const midpoint = Date.parse('2026-01-01T00:05:00.000Z');
+
+    expect(computeMovementProgress(startAt, arrivalAt, Date.parse(startAt))).toBe(0);
+    expect(computeMovementProgress(startAt, arrivalAt, midpoint)).toBe(0.5);
+    expect(computeMovementProgress(startAt, arrivalAt, Date.parse(arrivalAt))).toBe(1);
+  });
+
+  it('interpolates between origin and destination in world space', () => {
+    const origin = { hex: { q: 0, r: 0 }, position: { x: 0, y: 0 } };
+    const destination = { hex: { q: 0, r: 0 }, position: { x: 1, y: 1 } };
+
+    expect(
+      computeMovementWorldPosition(origin, destination, 0.5),
+    ).toEqual(planetSurfaceToWorldPoint({ q: 0, r: 0 }, { x: 0.5, y: 0.5 }));
+  });
+
+  it('maps a world point back to its containing hex', () => {
+    const surface = { hex: { q: 2, r: 3 }, position: { x: 0.35, y: 0.72 } };
+    const world = planetSurfaceToWorldPoint(surface.hex, surface.position);
+    const mapped = worldPointToPlanetSurfacePoint(world);
+
+    expect(mapped.hex).toEqual(surface.hex);
+    expect(mapped.position.x).toBeCloseTo(surface.position.x);
+    expect(mapped.position.y).toBeCloseTo(surface.position.y);
+  });
+});

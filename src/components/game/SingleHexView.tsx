@@ -2,7 +2,8 @@ import { useMemo } from 'react';
 import type { CSSProperties, MouseEvent } from 'react';
 import type { HexCoords, PlanetHexagon } from '../../types/planet';
 import type { Vec2Local } from '../../types/player';
-import type { UnitInstance } from '../../types/unit';
+import type { UnitInstance, UnitMovementTrack } from '../../types/unit';
+import { useAnimationNow } from '../../hooks/useAnimationNow';
 import { useContainerSize } from '../../hooks/useContainerSize';
 import { getBiomeColor } from '../../utils/biomeColors';
 import { getBiomeTileset } from '../../utils/biomeTilesets';
@@ -11,6 +12,8 @@ import { groupUnitsByHex } from '../../utils/unitLocation';
 import { hexCoordsKey } from '../../utils/unitMovement';
 import { HexUnitMarkers } from './HexUnitMarkers';
 import { MoveDestinationMarker } from './MoveDestinationMarker';
+import { MovingUnitsOverlay } from './MovingUnitsOverlay';
+import { isMovingVehicule } from '../../utils/unitMovementTrack';
 import {
   DEFAULT_HEX_LAYOUT,
   getToroidalHexScreenOffset,
@@ -38,6 +41,7 @@ export interface SingleHexViewProps {
   moveModeActive?: boolean;
   validMoveHexes?: HexCoords[];
   pendingMoveDestination?: MoveDestination | null;
+  movementTracks?: Readonly<Record<string, UnitMovementTrack>>;
   onMoveDestinationSelect?: (hex_coords: HexCoords, position: Vec2Local) => void;
   layout?: HexLayoutConfig;
 }
@@ -89,6 +93,7 @@ export function SingleHexView({
   moveModeActive = false,
   validMoveHexes = [],
   pendingMoveDestination = null,
+  movementTracks = {},
   onMoveDestinationSelect,
   layout: baseLayout = DEFAULT_HEX_LAYOUT,
 }: SingleHexViewProps) {
@@ -99,7 +104,20 @@ export function SingleHexView({
 
   const focus = hex.coordinates;
   const cells = useMemo(() => [hex, ...neighbors], [hex, neighbors]);
-  const unitsByHex = useMemo(() => groupUnitsByHex(planetUnits), [planetUnits]);
+  const staticUnits = useMemo(
+    () => planetUnits.filter((unit) => !isMovingVehicule(unit)),
+    [planetUnits],
+  );
+  const unitsByHex = useMemo(() => groupUnitsByHex(staticUnits), [staticUnits]);
+  const visibleHexKeys = useMemo(
+    () => new Set(cells.map((cell) => hexCoordsKey(cell.coordinates))),
+    [cells],
+  );
+  const hasMovingVehicules = useMemo(
+    () => planetUnits.some(isMovingVehicule),
+    [planetUnits],
+  );
+  const nowMs = useAnimationNow(hasMovingVehicules);
   const validMoveHexKeys = useMemo(
     () => new Set(validMoveHexes.map(hexCoordsKey)),
     [validMoveHexes],
@@ -212,6 +230,17 @@ export function SingleHexView({
               </div>
             );
           })}
+          <MovingUnitsOverlay
+            units={planetUnits}
+            movementTracks={movementTracks}
+            focus={focus}
+            visibleHexKeys={visibleHexKeys}
+            clusterTopLeft={{ x: centerX, y: centerY }}
+            clusterSize={{ width: size.width, height: size.height }}
+            layout={layout}
+            nowMs={nowMs}
+            selectedUnitId={selectedUnitId}
+          />
         </div>
       ) : null}
     </div>
