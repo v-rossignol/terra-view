@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 import {
   computeMovementProgress,
   computeMovementWorldPosition,
+  getToroidalSurfaceOffset,
   planetSurfaceToWorldPoint,
+  worldPointToClusterScreen,
   worldPointToPlanetSurfacePoint,
 } from '@utils/planetSurfaceTravel';
 
@@ -34,5 +36,38 @@ describe('planetSurfaceTravel', () => {
     expect(mapped.hex).toEqual(surface.hex);
     expect(mapped.position.x).toBeCloseTo(surface.position.x);
     expect(mapped.position.y).toBeCloseTo(surface.position.y);
+  });
+
+  it('uses toroidal wrapping for vertically adjacent hexes on a radius-13 planet', () => {
+    const from = { hex: { q: 8, r: 0 }, position: { x: 0.5, y: 0.5 } };
+    const to = { hex: { q: 8, r: 13 }, position: { x: 0.5, y: 0.5 } };
+    const adjacent = { hex: { q: 8, r: 1 }, position: { x: 0.5, y: 0.5 } };
+    const fromWorld = planetSurfaceToWorldPoint(from.hex, from.position);
+    const toWorld = planetSurfaceToWorldPoint(to.hex, to.position);
+    const adjacentWorld = planetSurfaceToWorldPoint(adjacent.hex, adjacent.position);
+
+    const wrapOffset = getToroidalSurfaceOffset(fromWorld, toWorld, 13);
+    const adjacentOffset = getToroidalSurfaceOffset(fromWorld, adjacentWorld, 13);
+
+    expect(Math.hypot(wrapOffset.x, wrapOffset.y)).toBeCloseTo(
+      Math.hypot(adjacentOffset.x, adjacentOffset.y),
+      5,
+    );
+  });
+
+  it('keeps toroidal destination screen offsets near the focus hex', () => {
+    const from = { hex: { q: 8, r: 0 }, position: { x: 0.5, y: 0.5 } };
+    const to = { hex: { q: 8, r: 13 }, position: { x: 0.5, y: 0.5 } };
+    const destinationWorld = planetSurfaceToWorldPoint(to.hex, to.position);
+    const clusterTopLeft = { x: 100, y: 100 };
+    const destinationScreen = worldPointToClusterScreen(
+      destinationWorld,
+      from.hex,
+      clusterTopLeft,
+      13,
+    );
+
+    expect(Math.abs(destinationScreen.x - clusterTopLeft.x)).toBeLessThanOrEqual(80);
+    expect(Math.abs(destinationScreen.y - clusterTopLeft.y)).toBeLessThan(80);
   });
 });

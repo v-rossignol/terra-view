@@ -109,4 +109,37 @@ describe('unitMovementTrack', () => {
       getFollowHexForSelectedMovingUnit(baseUnit(), { 'unit-1': track }, { q: 2, r: 4 }, midpoint),
     ).toBeNull();
   });
+
+  it('follows toroidal vertical wraps on a radius-13 planet', () => {
+    const track = movementTrackFromMoveOrder({
+      unitId: 'unit-1',
+      status: 'moving',
+      startAt: '2026-01-01T00:00:00.000Z',
+      arrivalAt: '2026-01-01T00:10:00.000Z',
+      origin: { hex: { q: 8, r: 0 }, position: { x: 0.5, y: 0.5 } },
+      destination: { hex: { q: 8, r: 13 }, position: { x: 0.5, y: 0.5 } },
+      distance: 0.2,
+    });
+    const nearArrival = Date.parse('2026-01-01T00:09:00.000Z');
+
+    expect(
+      getFollowHexForSelectedMovingUnit(
+        baseUnit({
+          location: {
+            cube: { id: 'cube-1' },
+            starSystem: { id: 'system-1' },
+            planet: {
+              id: 'planet-1',
+              hex_coords: { q: 8, r: 0 },
+              position: { x: 0.5, y: 0.5 },
+            },
+          },
+        }),
+        { 'unit-1': track },
+        { q: 8, r: 0 },
+        nearArrival,
+        13,
+      ),
+    ).toEqual({ q: 8, r: 13 });
+  });
 });

@@ -8,6 +8,7 @@ import { getFollowHexForSelectedMovingUnit, isMovingVehicule } from '../utils/un
 export interface FollowSelectedMovingUnitOptions {
   planetId: string | null | undefined;
   coords: HexCoords | null | undefined;
+  planetRadius: number | null | undefined;
   selectedUnit: UnitInstance | null;
   movementTracks: Readonly<Record<string, UnitMovementTrack>>;
 }
@@ -16,6 +17,7 @@ export interface FollowSelectedMovingUnitOptions {
 export function useFollowSelectedMovingUnit({
   planetId,
   coords,
+  planetRadius,
   selectedUnit,
   movementTracks,
 }: FollowSelectedMovingUnitOptions): MutableRefObject<boolean> {
@@ -35,6 +37,7 @@ export function useFollowSelectedMovingUnit({
       movementTracks,
       coords,
       nowMs,
+      planetRadius ?? undefined,
     );
 
     if (followHex == null) {
@@ -46,6 +49,7 @@ export function useFollowSelectedMovingUnit({
   }, [
     planetId,
     coords,
+    planetRadius,
     selectedUnit,
     selectedIsMoving,
     movementTracks,

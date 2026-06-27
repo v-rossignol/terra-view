@@ -12,6 +12,7 @@ import {
   computeMovementWorldPosition,
   worldPointToPlanetSurfacePoint,
 } from './planetSurfaceTravel';
+import { DEFAULT_HEX_LAYOUT } from './hexLayout';
 import { getUnitHexCoords, getUnitHexLocalPosition } from './unitLocation';
 
 export function isMovingVehicule(unit: UnitInstance): boolean {
@@ -111,11 +112,12 @@ export function isMovementVisibleInCluster(
 export function getMovingUnitSurfacePointAtTime(
   track: UnitMovementTrack,
   nowMs: number,
+  radius?: number,
 ): MoveSurfacePoint {
   const progress = computeMovementProgress(track.startAt, track.arrivalAt, nowMs);
-  const worldPoint = computeMovementWorldPosition(track.origin, track.destination, progress);
+  const worldPoint = computeMovementWorldPosition(track.origin, track.destination, progress, radius);
 
-  return worldPointToPlanetSurfacePoint(worldPoint);
+  return worldPointToPlanetSurfacePoint(worldPoint, DEFAULT_HEX_LAYOUT, radius);
 }
 
 export function getFollowHexForSelectedMovingUnit(
@@ -123,6 +125,7 @@ export function getFollowHexForSelectedMovingUnit(
   movementTracks: Readonly<Record<string, UnitMovementTrack>>,
   currentCoords: HexCoords | null,
   nowMs: number,
+  radius?: number,
 ): HexCoords | null {
   if (selectedUnit == null || currentCoords == null || !isMovingVehicule(selectedUnit)) {
     return null;
@@ -133,7 +136,7 @@ export function getFollowHexForSelectedMovingUnit(
     return null;
   }
 
-  const surface = getMovingUnitSurfacePointAtTime(track, nowMs);
+  const surface = getMovingUnitSurfacePointAtTime(track, nowMs, radius);
   if (surface.hex.q === currentCoords.q && surface.hex.r === currentCoords.r) {
     return null;
   }

@@ -234,6 +234,7 @@ export function SingleHexView({
             units={planetUnits}
             movementTracks={movementTracks}
             focus={focus}
+            radius={radius}
             visibleHexKeys={visibleHexKeys}
             clusterTopLeft={{ x: centerX, y: centerY }}
             clusterSize={{ width: size.width, height: size.height }}

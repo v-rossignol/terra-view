@@ -174,6 +174,7 @@ export function PlanetHexPage() {
   const skipHexResetRef = useFollowSelectedMovingUnit({
     planetId,
     coords,
+    planetRadius,
     selectedUnit,
     movementTracks,
   });

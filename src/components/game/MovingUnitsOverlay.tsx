@@ -18,6 +18,7 @@ export interface MovingUnitsOverlayProps {
   units: UnitInstance[];
   movementTracks: Readonly<Record<string, UnitMovementTrack>>;
   focus: HexCoords;
+  radius: number;
   visibleHexKeys: ReadonlySet<string>;
   clusterTopLeft: { x: number; y: number };
   clusterSize: { width: number; height: number };
@@ -39,6 +40,7 @@ function buildAnimatedUnits(
   units: UnitInstance[],
   movementTracks: Readonly<Record<string, UnitMovementTrack>>,
   focus: HexCoords,
+  radius: number,
   visibleHexKeys: ReadonlySet<string>,
   clusterTopLeft: { x: number; y: number },
   layout: HexLayoutConfig,
@@ -61,6 +63,7 @@ function buildAnimatedUnits(
       track.origin,
       track.destination,
       progress,
+      radius,
       layout,
     );
     const destinationWorld = planetSurfaceToWorldPoint(
@@ -68,11 +71,18 @@ function buildAnimatedUnits(
       track.destination.position,
       layout,
     );
-    const currentScreen = worldPointToClusterScreen(worldPosition, focus, clusterTopLeft, layout);
+    const currentScreen = worldPointToClusterScreen(
+      worldPosition,
+      focus,
+      clusterTopLeft,
+      radius,
+      layout,
+    );
     const destinationScreen = worldPointToClusterScreen(
       destinationWorld,
       focus,
       clusterTopLeft,
+      radius,
       layout,
     );
 
@@ -93,6 +103,7 @@ export function MovingUnitsOverlay({
   units,
   movementTracks,
   focus,
+  radius,
   visibleHexKeys,
   clusterTopLeft,
   clusterSize,
@@ -104,6 +115,7 @@ export function MovingUnitsOverlay({
     units,
     movementTracks,
     focus,
+    radius,
     visibleHexKeys,
     clusterTopLeft,
     layout,
