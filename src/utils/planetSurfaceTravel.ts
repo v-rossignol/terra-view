@@ -160,6 +160,31 @@ function finalizeSurfacePoint(
   };
 }
 
+function estimateSurfaceHexGuess(
+  point: Vec2Local,
+  config: HexLayoutConfig,
+  radius?: number,
+): { qGuess: number; rGuess: number } {
+  const verticalStep = hexVerticalStep(config.hexHeight);
+  let rGuess = Math.floor(point.y / verticalStep);
+
+  if (radius != null && radius > 0) {
+    rGuess = Math.min(radius, Math.max(0, rGuess));
+  } else {
+    rGuess = Math.max(0, rGuess);
+  }
+
+  let qGuess = Math.round(
+    (point.x - (rGuess % 2) * (config.hexWidth / 2)) / config.hexWidth,
+  );
+
+  if (radius != null && radius > 0) {
+    qGuess = Math.min(radius - 1, Math.max(0, qGuess));
+  }
+
+  return { qGuess, rGuess };
+}
+
 /** Maps a continuous surface world point to the containing hex and in-hex position. */
 export function worldPointToPlanetSurfacePoint(
   worldPoint: Vec2Local,
@@ -170,14 +195,14 @@ export function worldPointToPlanetSurfacePoint(
     radius != null && radius > 0
       ? canonicalizeToroidalWorldPoint(worldPoint, radius, config)
       : worldPoint;
-  const verticalStep = hexVerticalStep(config.hexHeight);
-  const rGuess = Math.round(point.y / verticalStep);
-  const qGuess = Math.round(
-    (point.x - (rGuess % 2) * (config.hexWidth / 2)) / config.hexWidth,
-  );
+  const { qGuess, rGuess } = estimateSurfaceHexGuess(point, config, radius);
+  const rMin = radius != null && radius > 0 ? 0 : rGuess - 1;
+  const rMax = radius != null && radius > 0 ? radius : rGuess + 1;
+  const qMin = radius != null && radius > 0 ? 0 : qGuess - 1;
+  const qMax = radius != null && radius > 0 ? radius - 1 : qGuess + 1;
 
-  for (let r = rGuess - 1; r <= rGuess + 1; r += 1) {
-    for (let q = qGuess - 1; q <= qGuess + 1; q += 1) {
+  for (let r = Math.max(rMin, rGuess - 1); r <= Math.min(rMax, rGuess + 1); r += 1) {
+    for (let q = Math.max(qMin, qGuess - 1); q <= Math.min(qMax, qGuess + 1); q += 1) {
       const position = hexLocalFromWorldOffset(point, { q, r }, config);
       if (isHexLocalPointInside(position)) {
         return finalizeSurfacePoint({ q, r }, position, radius);
@@ -188,8 +213,8 @@ export function worldPointToPlanetSurfacePoint(
   let bestHex: HexCoords = { q: qGuess, r: rGuess };
   let bestDistance = Number.POSITIVE_INFINITY;
 
-  for (let r = rGuess - 1; r <= rGuess + 1; r += 1) {
-    for (let q = qGuess - 1; q <= qGuess + 1; q += 1) {
+  for (let r = Math.max(rMin, rGuess - 1); r <= Math.min(rMax, rGuess + 1); r += 1) {
+    for (let q = Math.max(qMin, qGuess - 1); q <= Math.min(qMax, qGuess + 1); q += 1) {
       const distance = distanceToHexCenter(point, { q, r }, config);
       if (distance < bestDistance) {
         bestDistance = distance;

@@ -7,6 +7,7 @@ import {
   worldPointToClusterScreen,
   worldPointToPlanetSurfacePoint,
 } from '@utils/planetSurfaceTravel';
+import { DEFAULT_HEX_LAYOUT } from '@utils/hexLayout';
 
 describe('planetSurfaceTravel', () => {
   it('computes movement progress from startAt and arrivalAt', () => {
@@ -69,5 +70,24 @@ describe('planetSurfaceTravel', () => {
 
     expect(Math.abs(destinationScreen.x - clusterTopLeft.x)).toBeLessThanOrEqual(80);
     expect(Math.abs(destinationScreen.y - clusterTopLeft.y)).toBeLessThan(80);
+  });
+
+  it('resolves toroidal arrival at (8, 13) instead of (9, 13) on a radius-13 planet', () => {
+    const from = { hex: { q: 8, r: 0 }, position: { x: 0.5, y: 0.5 } };
+    const to = { hex: { q: 8, r: 13 }, position: { x: 0.5, y: 0.5 } };
+    const destinationWorld = planetSurfaceToWorldPoint(to.hex, to.position);
+
+    expect(worldPointToPlanetSurfacePoint(destinationWorld, DEFAULT_HEX_LAYOUT, 13).hex).toEqual({
+      q: 8,
+      r: 13,
+    });
+
+    for (const progress of [0.95, 0.99, 1]) {
+      const world = computeMovementWorldPosition(from, to, progress, 13);
+      expect(worldPointToPlanetSurfacePoint(world, DEFAULT_HEX_LAYOUT, 13).hex).toEqual({
+        q: 8,
+        r: 13,
+      });
+    }
   });
 });

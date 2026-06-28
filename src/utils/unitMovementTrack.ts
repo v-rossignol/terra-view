@@ -136,6 +136,17 @@ export function getFollowHexForSelectedMovingUnit(
     return null;
   }
 
+  const progress = computeMovementProgress(track.startAt, track.arrivalAt, nowMs);
+  const destination = track.destination.hex;
+
+  if (progress >= 1) {
+    if (destination.q === currentCoords.q && destination.r === currentCoords.r) {
+      return null;
+    }
+
+    return destination;
+  }
+
   const surface = getMovingUnitSurfacePointAtTime(track, nowMs, radius);
   if (surface.hex.q === currentCoords.q && surface.hex.r === currentCoords.r) {
     return null;
