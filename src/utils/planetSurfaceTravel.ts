@@ -60,6 +60,28 @@ export function computeMovementProgress(
   return Math.min(1, Math.max(0, (nowMs - startMs) / (arrivalMs - startMs)));
 }
 
+/** Screen-space degrees (0 = east, 90 = south). Pass a facing offset when sprite art does not face east. */
+export function computeMovementDirectionDegrees(
+  origin: MoveSurfacePoint,
+  destination: MoveSurfacePoint,
+  radius?: number,
+  config: HexLayoutConfig = DEFAULT_HEX_LAYOUT,
+  facingOffsetDeg = 0,
+): number {
+  const from = planetSurfaceToWorldPoint(origin.hex, origin.position, config);
+  const to = planetSurfaceToWorldPoint(destination.hex, destination.position, config);
+  const offset =
+    radius != null && radius > 0
+      ? getToroidalSurfaceOffset(from, to, radius, config)
+      : { x: to.x - from.x, y: to.y - from.y };
+
+  if (offset.x === 0 && offset.y === 0) {
+    return facingOffsetDeg;
+  }
+
+  return (Math.atan2(offset.y, offset.x) * 180) / Math.PI + facingOffsetDeg;
+}
+
 export function computeMovementWorldPosition(
   origin: MoveSurfacePoint,
   destination: MoveSurfacePoint,

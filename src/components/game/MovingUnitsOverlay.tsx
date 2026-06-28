@@ -1,6 +1,7 @@
 import type { HexCoords } from '../../types/planet';
 import type { UnitInstance, UnitMovementTrack } from '../../types/unit';
 import {
+  computeMovementDirectionDegrees,
   computeMovementProgress,
   computeMovementWorldPosition,
   planetSurfaceToWorldPoint,
@@ -13,6 +14,9 @@ import {
 } from '../../utils/unitMovementTrack';
 import { getUnitSprite } from '../../utils/unitSprites';
 import type { HexLayoutConfig } from '../../utils/hexLayout';
+
+/** Unit sprites face the top of the image; offset atan2 direction to match art. */
+const UNIT_SPRITE_FACING_OFFSET_DEG = 90;
 
 export interface MovingUnitsOverlayProps {
   units: UnitInstance[];
@@ -34,6 +38,7 @@ interface AnimatedUnitRender {
   currentY: number;
   destinationX: number;
   destinationY: number;
+  rotationDeg: number;
 }
 
 function buildAnimatedUnits(
@@ -93,6 +98,13 @@ function buildAnimatedUnits(
       currentY: currentScreen.y,
       destinationX: destinationScreen.x,
       destinationY: destinationScreen.y,
+      rotationDeg: computeMovementDirectionDegrees(
+        track.origin,
+        track.destination,
+        radius,
+        layout,
+        UNIT_SPRITE_FACING_OFFSET_DEG,
+      ),
     });
   }
 
@@ -144,7 +156,7 @@ export function MovingUnitsOverlay({
           />
         ))}
       </svg>
-      {animatedUnits.map(({ unit, currentX, currentY }) => {
+      {animatedUnits.map(({ unit, currentX, currentY, rotationDeg }) => {
         const sprite = getUnitSprite(unit.typeId);
         const isSelected = selectedUnitId === unit.id;
         const unitClassName = [
@@ -164,6 +176,7 @@ export function MovingUnitsOverlay({
             style={{
               left: `${currentX}px`,
               top: `${currentY}px`,
+              transform: `translate(-50%, -50%) rotate(${rotationDeg}deg)`,
               ...(sprite != null ? { backgroundImage: `url(${sprite})` } : {}),
             }}
             title={unit.type.name}

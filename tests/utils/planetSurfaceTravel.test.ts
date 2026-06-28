@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  computeMovementDirectionDegrees,
   computeMovementProgress,
   computeMovementWorldPosition,
   getToroidalSurfaceOffset,
@@ -18,6 +19,32 @@ describe('planetSurfaceTravel', () => {
     expect(computeMovementProgress(startAt, arrivalAt, Date.parse(startAt))).toBe(0);
     expect(computeMovementProgress(startAt, arrivalAt, midpoint)).toBe(0.5);
     expect(computeMovementProgress(startAt, arrivalAt, Date.parse(arrivalAt))).toBe(1);
+  });
+
+  it('computes movement direction in screen-space degrees', () => {
+    const origin = { hex: { q: 0, r: 0 }, position: { x: 0.2, y: 0.5 } };
+    const east = { hex: { q: 0, r: 0 }, position: { x: 0.8, y: 0.5 } };
+    const north = { hex: { q: 0, r: 0 }, position: { x: 0.2, y: 0.2 } };
+
+    expect(computeMovementDirectionDegrees(origin, east, undefined, DEFAULT_HEX_LAYOUT, 90)).toBeCloseTo(
+      90,
+    );
+    expect(computeMovementDirectionDegrees(origin, north, undefined, DEFAULT_HEX_LAYOUT, 90)).toBeCloseTo(
+      0,
+    );
+  });
+
+  it('matches the direction of interpolated movement', () => {
+    const origin = { hex: { q: 8, r: 0 }, position: { x: 0.5, y: 0.5 } };
+    const destination = { hex: { q: 8, r: 13 }, position: { x: 0.5, y: 0.5 } };
+    const start = computeMovementWorldPosition(origin, destination, 0, 13);
+    const early = computeMovementWorldPosition(origin, destination, 0.01, 13);
+    const expectedDeg =
+      (Math.atan2(early.y - start.y, early.x - start.x) * 180) / Math.PI + 90;
+
+    expect(
+      computeMovementDirectionDegrees(origin, destination, 13, DEFAULT_HEX_LAYOUT, 90),
+    ).toBeCloseTo(expectedDeg);
   });
 
   it('interpolates between origin and destination in world space', () => {
