@@ -128,6 +128,7 @@ Do not create documentation files unless explicitly requested.
 
 See [rules/coding.md](rules/coding.md) for full coding conventions. Agent-specific rules:
 
+- Before coding or answering, if something needs to be clarified, ask the user.
 - Keep diffs minimal; match existing patterns before introducing new abstractions.
 - UI copy and code identifiers are in **English**.
 
