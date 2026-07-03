@@ -45,23 +45,31 @@ describe('planetGrid', () => {
     expect(hex.r).toBeLessThan(getPlanetGridHeight(radius));
   });
 
-  it('returns six toroidal game-logic neighbors', () => {
+  it('returns six rendered-surface neighbors', () => {
     expect(getHexNeighbors(2, 3, 10)).toEqual([
-      { q: 1, r: 4 },
-      { q: 2, r: 4 },
-      { q: 3, r: 3 },
-      { q: 3, r: 2 },
       { q: 2, r: 2 },
+      { q: 3, r: 2 },
+      { q: 2, r: 4 },
+      { q: 3, r: 4 },
       { q: 1, r: 3 },
+      { q: 3, r: 3 },
     ]);
   });
 
-  it('wraps neighbors at grid edges', () => {
+  it('wraps neighbors at grid edges using rendered adjacency', () => {
     expect(getHexNeighbors(0, 0, 5)).toContainEqual({ q: 4, r: 0 });
     expect(getHexNeighbors(4, 5, 5)).toContainEqual({ q: 0, r: 5 });
   });
 
-  it('finds game-logic neighbor hexagons from planet surface data', () => {
+  it('matches hex view south wrap from (8, 13) on radius 13', () => {
+    const neighbors = getHexNeighbors(8, 13, 13);
+
+    expect(neighbors).toContainEqual({ q: 8, r: 0 });
+    expect(neighbors).toContainEqual({ q: 9, r: 0 });
+    expect(neighbors).not.toContainEqual({ q: 7, r: 0 });
+  });
+
+  it('finds rendered neighbor hexagons from planet surface data', () => {
     const hexagons: PlanetHexagon[] = [makeHex(2, 3), makeHex(2, 4, 'ocean')];
 
     expect(findNeighborHexagons(hexagons, { q: 2, r: 3 }, 10)).toEqual([hexagons[1]]);

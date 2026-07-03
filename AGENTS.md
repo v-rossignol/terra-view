@@ -1,6 +1,6 @@
 # AGENTS.md — Terra View
 
-2D planetary surface visualization client for **Infinity** (hex map, biomes, resources, multiplayer sync). React 18 + TypeScript + Vite SPA with **PixiJS 7** for map rendering.
+2D planetary surface visualization client for **Infinity** (hex map, biomes, resources, multiplayer sync). React 18 + TypeScript + Vite SPA with **PixiJS 7** for map rendering. Shares hex layout dimensions, terrain resource definitions, and constants with the server via **`@infinity/shared-config`** (npm workspace package).
 
 **Monorepo context:** [../AGENTS.md](../AGENTS.md) · **Known gaps:** [../documentation/TO-BE-FIXED.md](../documentation/TO-BE-FIXED.md)
 
@@ -101,6 +101,23 @@ Planet domain model: hexagonal toroidal surface.
 - REST base path: `/infinity/*` (Vite dev proxy forwards to `:4000`).
 - Do **not** store JWT in `localStorage`, `sessionStorage`, or JS state.
 - Socket.IO event names and payloads follow server gateway conventions — see [../contracts/asyncapi.yaml](../contracts/asyncapi.yaml).
+
+### Shared packages
+
+Terra View consumes workspace packages from `packages/` — see [packages/AGENTS.md](../packages/AGENTS.md) for the full catalogue, constraints, and build instructions.
+
+| Package | Used for |
+| ------- | -------- |
+| `@infinity/shared-config` | Hex layout dimensions (`PLANET_HEX_LAYOUT_WIDTH/HEIGHT`), terrain resource definitions, color palette, game constants |
+
+Before running `npm run dev` or `npm run build`, ensure consumed packages are built:
+
+```bash
+# from the monorepo root
+cd packages/shared-config && npm run build
+```
+
+When adding a new `@infinity/*` import, add the package to `dependencies` in `package.json` (workspace resolution handles the path) and rebuild the package first.
 
 ### Layering
 

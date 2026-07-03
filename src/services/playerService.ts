@@ -2,7 +2,7 @@ import type { CanEnterResponse } from '../types/api';
 import type { EnterGameResponse, HexCoords, Player } from '../types/player';
 import { isUnauthorizedError } from '../utils/authErrors';
 import { authService } from './authService';
-import { api } from './api';
+import { api, dedupedGet } from './api';
 
 export const playerService = {
   async enterGame(): Promise<EnterGameResponse> {
@@ -10,9 +10,8 @@ export const playerService = {
     return response.data;
   },
 
-  async getPlayerByUserId(userId: string): Promise<Player> {
-    const response = await api.get<Player>(`/players/${encodeURIComponent(userId)}`);
-    return response.data;
+  getPlayerByUserId(userId: string): Promise<Player> {
+    return dedupedGet<Player>(`/players/${encodeURIComponent(userId)}`);
   },
 
   async getCurrentPlayerSession(): Promise<{ playerId: string; playerName: string } | null> {
@@ -46,10 +45,7 @@ export const playerService = {
     return response.data;
   },
 
-  async canEnterStarSystem(starSystemId: string): Promise<CanEnterResponse> {
-    const response = await api.get<CanEnterResponse>(
-      `/players/me/can-enter/system/${starSystemId}`,
-    );
-    return response.data;
+  canEnterStarSystem(starSystemId: string): Promise<CanEnterResponse> {
+    return dedupedGet<CanEnterResponse>(`/players/me/can-enter/system/${starSystemId}`);
   },
 };

@@ -10,9 +10,7 @@ import type { UnitInstance } from '../types/unit';
 import { getErrorMessage } from '../utils/helpers';
 import { rollRandomHex } from '../utils/planetGrid';
 import { hasPlanetHex, isPlayerOnPlanet } from '../utils/playerLocation';
-import { UNAUTHORIZED_ERROR_MESSAGE } from '../utils/authErrors';
-
-export type FirstPageStatus = 'loading' | 'ready' | 'error';
+export type FirstPageStatus = 'loading' | 'ready' | 'error' | 'unauthorized';
 
 export interface FirstPageState {
   status: FirstPageStatus;
@@ -151,7 +149,7 @@ export const useFirstPageBootstrap = (): FirstPageState => {
 
         if (axios.isAxiosError(error) && error.response?.status === 401) {
           setState({
-            status: 'error',
+            status: 'unauthorized',
             playerName: null,
             playerId: null,
             starName: null,
@@ -160,7 +158,7 @@ export const useFirstPageBootstrap = (): FirstPageState => {
             planet: null,
             playerHex: null,
             planetUnits: [],
-            error: UNAUTHORIZED_ERROR_MESSAGE,
+            error: null,
           });
           return;
         }

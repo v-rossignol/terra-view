@@ -1,6 +1,7 @@
+import type { ResourceRarity } from '@infinity/shared-config';
 import type { BiomeType, HexCoords } from './planet';
 
-export type ResourceRarity = 'common' | 'rare' | 'epic' | 'legendary';
+export type { ResourceRarity };
 
 export interface HexResource {
   type: string;

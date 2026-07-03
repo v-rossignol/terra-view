@@ -1,8 +1,29 @@
 import type { HexCoords, Location, Vec2Local } from './player';
+import type { UnitInstanceStatus } from '@infinity/shared-config';
+
+export { UNIT_INSTANCE_STATUSES } from '@infinity/shared-config';
+export type { UnitInstanceStatus };
 
 export type UnitCategory = 'vehicule' | 'building';
 export type UnitSize = 'small' | 'medium' | 'large';
-export type UnitInstanceStatus = 'idle' | 'moving' | 'inactive' | 'active' | 'destroyed';
+
+export type UnitCargo = Record<string, number>;
+
+export interface UnitRecipe {
+  ingredients: Record<string, number>;
+  work: number;
+}
+
+export interface ListBuildableUnitsQuery {
+  planetId?: string;
+  q?: number;
+  r?: number;
+}
+
+export interface BuildableUnitType extends UnitType {
+  recipe?: UnitRecipe;
+  buildDurationMs: number;
+}
 
 export interface MoveUnitRequest {
   planetId: string;
@@ -32,6 +53,37 @@ export interface StopUnitRequest {
 export interface StopOrderResult {
   unitId: string;
   status: 'idle';
+}
+
+export interface ExtractUnitRequest {
+  planetId: string;
+  resourceType: string;
+}
+
+export interface ExtractOrderResult {
+  unitId: string;
+  status: 'extracting';
+  resourceType: string;
+  startedAt: string;
+}
+
+export interface StopExtractionOrderResult {
+  unitId: string;
+  status: 'idle';
+  extractedAmount: number;
+}
+
+export interface DropCargoRequest {
+  planetId: string;
+  resourceType: string;
+  amount: number;
+}
+
+export interface DropCargoOrderResult {
+  unitId: string;
+  status: 'idle';
+  resourceType: string;
+  droppedAmount: number;
 }
 
 /** Server-persisted movement state (`unit.metadata.movement`). */
@@ -73,5 +125,6 @@ export interface UnitInstance {
   createdAt: string;
   updatedAt: string;
   metadata: Record<string, unknown>;
+  cargo: UnitCargo;
   type: UnitType;
 }

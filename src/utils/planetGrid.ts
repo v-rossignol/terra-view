@@ -11,19 +11,40 @@ export function getPlanetGridHeight(radius: number): number {
   return radius + 1;
 }
 
-/** Toroidal neighbors — matches server `getNeighbors` (game logic). */
-export function getHexNeighbors(q: number, r: number, radius: number): HexCoords[] {
+/**
+ * Hexes adjacent to `(q, r)` on the rendered toroidal surface.
+ * Matches hex view (`findVisualNeighborHexagons`) and server `getNeighbors`.
+ */
+export function getHexNeighbors(
+  q: number,
+  r: number,
+  radius: number,
+  layout: HexLayoutConfig = DEFAULT_HEX_LAYOUT,
+): HexCoords[] {
   const width = radius;
   const height = getPlanetGridHeight(radius);
+  const focus = { q, r };
+  const maxDistance = getMaxAdjacentHexCenterDistance(layout);
+  const candidates: Array<{ coords: HexCoords; distance: number }> = [];
 
-  return [
-    { q: (q - 1 + width) % width, r: (r + 1) % height },
-    { q, r: (r + 1) % height },
-    { q: (q + 1) % width, r },
-    { q: (q + 1) % width, r: (r - 1 + height) % height },
-    { q, r: (r - 1 + height) % height },
-    { q: (q - 1 + width) % width, r },
-  ];
+  for (let row = 0; row < height; row += 1) {
+    for (let col = 0; col < width; col += 1) {
+      if (col === q && row === r) {
+        continue;
+      }
+
+      const coords = { q: col, r: row };
+      const distance = getHexCenterDistance(focus, coords, layout, radius);
+      if (distance <= maxDistance) {
+        candidates.push({ coords, distance });
+      }
+    }
+  }
+
+  return candidates
+    .sort((left, right) => left.distance - right.distance)
+    .slice(0, 6)
+    .map(({ coords }) => coords);
 }
 
 export function findNeighborHexagons(
@@ -55,20 +76,13 @@ export function findVisualNeighborHexagons(
     return [];
   }
 
-  const maxDistance = getMaxAdjacentHexCenterDistance(layout);
-
-  return hexagons
-    .filter(
-      (cell) => cell.coordinates.q !== focus.q || cell.coordinates.r !== focus.r,
+  return getHexNeighbors(focus.q, focus.r, radius, layout)
+    .map((coords) =>
+      hexagons.find(
+        (cell) => cell.coordinates.q === coords.q && cell.coordinates.r === coords.r,
+      ),
     )
-    .map((cell) => ({
-      cell,
-      distance: getHexCenterDistance(focus, cell.coordinates, layout, radius),
-    }))
-    .filter(({ distance }) => distance <= maxDistance)
-    .sort((left, right) => left.distance - right.distance)
-    .slice(0, 6)
-    .map(({ cell }) => cell);
+    .filter((cell): cell is PlanetHexagon => cell != null);
 }
 
 /** Random spawn hex within planet bounds — matches server `rollRandomPosition`. */

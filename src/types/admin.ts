@@ -1,6 +1,7 @@
+import type { EnterablePlanetType } from '@infinity/shared-config';
 import type { PlanetSurface } from './planet';
 
-export type PlanetType = 'rocky' | 'ice' | 'lava';
+export type PlanetType = EnterablePlanetType;
 
 export interface GeneratePlanetParams {
   seed?: string;

@@ -41,6 +41,7 @@ export function applyUnitUpdate(
     ...unit,
     status: payload.status,
     location: payload.location,
+    ...(payload.cargo != null ? { cargo: payload.cargo } : {}),
   };
   return next;
 }

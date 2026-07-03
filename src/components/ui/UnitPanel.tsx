@@ -1,4 +1,8 @@
-import type { UnitInstance, UnitInstanceStatus } from '../../types/unit';
+import { CargoGauge } from '@infinity/shared-ui';
+import buildingIcon from '../../assets/icons/building.avif';
+import extractionIcon from '../../assets/icons/extraction.avif';
+import moveIcon from '../../assets/icons/move.avif';
+import type { UnitCargo, UnitInstance, UnitInstanceStatus } from '../../types/unit';
 
 const panelStyle: React.CSSProperties = {
   position: 'absolute',
@@ -22,16 +26,6 @@ const titleStyle: React.CSSProperties = {
   color: '#7eb8ff',
 };
 
-const actionsStyle: React.CSSProperties = {
-  display: 'flex',
-  flexDirection: 'row',
-  flexWrap: 'wrap',
-  gap: '0.35rem',
-  marginTop: '0.75rem',
-  paddingTop: '0.75rem',
-  borderTop: '1px solid #3a3a3a',
-};
-
 const actionButtonStyle: React.CSSProperties = {
   padding: '0.25rem 0.5rem',
   borderRadius: '4px',
@@ -50,15 +44,6 @@ const metaStyle: React.CSSProperties = {
   color: '#b0b0b0',
 };
 
-const sectionTitleStyle: React.CSSProperties = {
-  margin: '0 0 0.35rem',
-  fontSize: '0.75rem',
-  fontWeight: 600,
-  color: '#9a9a9a',
-  textTransform: 'uppercase',
-  letterSpacing: '0.04em',
-};
-
 const listStyle: React.CSSProperties = {
   margin: 0,
   padding: 0,
@@ -70,6 +55,82 @@ const itemStyle: React.CSSProperties = {
   color: '#e0e0e0',
 };
 
+const capabilityIconsRowStyle: React.CSSProperties = {
+  ...itemStyle,
+  display: 'flex',
+  alignItems: 'center',
+  gap: '0.35rem',
+};
+
+const capabilityIconButtonStyle: React.CSSProperties = {
+  ...actionButtonStyle,
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  padding: '0.25rem',
+  flexShrink: 0,
+};
+
+const moveIconButtonStyle: React.CSSProperties = {
+  ...capabilityIconButtonStyle,
+  marginLeft: 'auto',
+};
+
+const capabilityIconDisplayStyle: React.CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  flexShrink: 0,
+  cursor: 'help',
+};
+
+const capabilityIconImageStyle: React.CSSProperties = {
+  width: '3rem',
+  height: '3rem',
+  display: 'block',
+};
+
+const cargoRowStyle: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: '0.65rem',
+  marginBottom: '0.5rem',
+};
+
+const cargoGaugeWrapStyle: React.CSSProperties = {
+  flex: 1,
+  minWidth: 0,
+};
+
+const cargoEyeButtonStyle: React.CSSProperties = {
+  ...actionButtonStyle,
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  padding: '0.25rem',
+  flexShrink: 0,
+  marginTop: '0.35rem',
+};
+
+function CargoEyeIcon(): React.ReactElement {
+  return (
+    <svg
+      aria-hidden
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+      <circle cx="12" cy="12" r="3" />
+    </svg>
+  );
+}
+
 const mutedStyle: React.CSSProperties = {
   margin: 0,
   color: '#9a9a9a',
@@ -80,7 +141,7 @@ function formatStatus(status: UnitInstanceStatus): string {
 }
 
 function getStatusColor(status: UnitInstanceStatus): string {
-  if (status === 'moving') {
+  if (status === 'moving' || status === 'extracting') {
     return '#6bcf7f';
   }
 
@@ -95,13 +156,27 @@ function formatSpeed(speed: number | null, mobility: boolean): string {
   return String(speed);
 }
 
+function formatBuildTargetCategory(category: string, target: unknown): string | null {
+  if (target == null || typeof target !== 'object') {
+    return null;
+  }
+
+  if (!('sizes' in target && Array.isArray(target.sizes) && 'units' in target && Array.isArray(target.units))) {
+    return null;
+  }
+
+  const sizes = target.sizes.map(String).join(', ');
+  const units = target.units.map(String).join(', ');
+  return `${category} sizes ${sizes}, units ${units}`;
+}
+
 function formatCapability(key: string, value: unknown): string | null {
   if (value == null || typeof value !== 'object') {
     return null;
   }
 
-  if (key === 'cargo' && 'size' in value && typeof value.size === 'number') {
-    return `Cargo capacity: ${value.size}`;
+  if (key === 'cargo') {
+    return null;
   }
 
   if (
@@ -115,32 +190,105 @@ function formatCapability(key: string, value: unknown): string | null {
     return `Extraction: speed ${value.speed}, types ${types}`;
   }
 
+  if (key === 'building' && 'speed' in value && typeof value.speed === 'number') {
+    const parts = [`speed ${value.speed}`];
+    const vehicules = formatBuildTargetCategory(
+      'vehicules',
+      'vehicules' in value ? value.vehicules : null,
+    );
+    const buildings = formatBuildTargetCategory(
+      'buildings',
+      'buildings' in value ? value.buildings : null,
+    );
+
+    if (vehicules != null) {
+      parts.push(vehicules);
+    }
+
+    if (buildings != null) {
+      parts.push(buildings);
+    }
+
+    return `Building: ${parts.join('; ')}`;
+  }
+
   return null;
 }
 
-function hasCargoCapability(capabilities: Record<string, unknown>): boolean {
+function getCargoCapacity(capabilities: Record<string, unknown>): number | null {
   const cargo = capabilities.cargo;
 
-  return cargo != null && typeof cargo === 'object' && 'size' in cargo && typeof cargo.size === 'number';
+  if (cargo != null && typeof cargo === 'object' && 'size' in cargo && typeof cargo.size === 'number') {
+    return cargo.size;
+  }
+
+  return null;
 }
 
-function hasExtractionCapability(capabilities: Record<string, unknown>): boolean {
-  const extraction = capabilities.extraction;
-
-  return (
-    extraction != null &&
-    typeof extraction === 'object' &&
-    'speed' in extraction &&
-    typeof extraction.speed === 'number' &&
-    'types' in extraction &&
-    Array.isArray(extraction.types)
-  );
+function getUsedCargoSize(cargo: UnitCargo): number {
+  return Object.values(cargo).reduce((sum, quantity) => (quantity > 0 ? sum + quantity : sum), 0);
 }
 
-function getCapabilityEntries(capabilities: Record<string, unknown>): string[] {
-  return Object.entries(capabilities)
-    .map(([key, value]) => formatCapability(key, value))
-    .filter((entry): entry is string => entry != null);
+interface CapabilityEntry {
+  id: string;
+  text: string;
+  iconSrc?: string;
+}
+
+const CAPABILITY_ICON_ORDER = ['building', 'extraction'] as const;
+
+function getCapabilityIconSrc(key: string): string | undefined {
+  if (key === 'building') {
+    return buildingIcon;
+  }
+
+  if (key === 'extraction') {
+    return extractionIcon;
+  }
+
+  return undefined;
+}
+
+function getCapabilityEntries(capabilities: Record<string, unknown>): CapabilityEntry[] {
+  const entries: CapabilityEntry[] = [];
+
+  for (const key of CAPABILITY_ICON_ORDER) {
+    if (!(key in capabilities)) {
+      continue;
+    }
+
+    const text = formatCapability(key, capabilities[key]);
+
+    if (text == null) {
+      continue;
+    }
+
+    entries.push({
+      id: key,
+      text,
+      iconSrc: getCapabilityIconSrc(key),
+    });
+  }
+
+  for (const [key, value] of Object.entries(capabilities)) {
+    if ((CAPABILITY_ICON_ORDER as readonly string[]).includes(key)) {
+      continue;
+    }
+
+    const text = formatCapability(key, value);
+
+    if (text == null) {
+      continue;
+    }
+
+    entries.push({
+      id: key,
+      text,
+      iconSrc: getCapabilityIconSrc(key),
+    });
+  }
+
+  return entries;
 }
 
 const actionButtonActiveStyle: React.CSSProperties = {
@@ -177,20 +325,36 @@ const moveErrorStyle: React.CSSProperties = {
 export interface UnitPanelProps {
   unit: UnitInstance | null;
   moveModeActive?: boolean;
+  cargoPanelOpen?: boolean;
+  extractPanelOpen?: boolean;
+  buildingPanelOpen?: boolean;
   moveError?: string | null;
   moveDisabled?: boolean;
+  extractDisabled?: boolean;
+  buildingDisabled?: boolean;
   stopDisabled?: boolean;
   onMoveClick?: () => void;
+  onCargoClick?: () => void;
+  onExtractClick?: () => void;
+  onBuildingClick?: () => void;
   onStopClick?: () => void;
 }
 
 export function UnitPanel({
   unit,
   moveModeActive = false,
+  cargoPanelOpen = false,
+  extractPanelOpen = false,
+  buildingPanelOpen = false,
   moveError = null,
   moveDisabled = false,
+  extractDisabled = false,
+  buildingDisabled = false,
   stopDisabled = false,
   onMoveClick,
+  onCargoClick,
+  onExtractClick,
+  onBuildingClick,
   onStopClick,
 }: UnitPanelProps) {
   if (unit == null) {
@@ -198,11 +362,14 @@ export function UnitPanel({
   }
 
   const capabilityEntries = getCapabilityEntries(unit.type.capabilities);
+  const iconCapabilityEntries = capabilityEntries.filter((entry) => entry.iconSrc != null);
+  const textCapabilityEntries = capabilityEntries.filter((entry) => entry.iconSrc == null);
+  const cargoCapacity = getCargoCapacity(unit.type.capabilities);
   const showMoveTo = unit.type.mobility;
-  const showSeeCargo = hasCargoCapability(unit.type.capabilities);
-  const showExtract = hasExtractionCapability(unit.type.capabilities);
-  const showActions = showMoveTo || showSeeCargo || showExtract;
-  const showStop = unit.status === 'moving' && unit.type.type === 'vehicule';
+  const showIconRow = iconCapabilityEntries.length > 0 || showMoveTo;
+  const hasCapabilityContent = showIconRow || textCapabilityEntries.length > 0;
+  const showStop =
+    (unit.status === 'moving' && unit.type.type === 'vehicule') || unit.status === 'extracting';
 
   return (
     <aside style={panelStyle} aria-label="Unit panel">
@@ -225,49 +392,126 @@ export function UnitPanel({
       <p style={metaStyle}>
         Speed: <strong style={{ color: '#e0e0e0' }}>{formatSpeed(unit.type.speed, unit.type.mobility)}</strong>
       </p>
-      <p style={sectionTitleStyle}>Capabilities</p>
-      {capabilityEntries.length === 0 ? (
-        <p style={mutedStyle}>None</p>
+      {cargoCapacity != null ? (
+        <div style={cargoRowStyle}>
+          <div style={cargoGaugeWrapStyle}>
+            <CargoGauge
+              capacity={cargoCapacity}
+              used={getUsedCargoSize(unit.cargo)}
+              style={{ marginBottom: 0 }}
+            />
+          </div>
+          <button
+            type="button"
+            aria-label="View cargo"
+            aria-pressed={cargoPanelOpen}
+            style={
+              cargoPanelOpen
+                ? { ...cargoEyeButtonStyle, ...actionButtonActiveStyle }
+                : cargoEyeButtonStyle
+            }
+            onClick={onCargoClick}
+          >
+            <CargoEyeIcon />
+          </button>
+        </div>
+      ) : null}
+      {!hasCapabilityContent ? (
+        cargoCapacity == null ? <p style={mutedStyle}>None</p> : null
       ) : (
         <ul style={listStyle}>
-          {capabilityEntries.map((entry) => (
-            <li key={entry} style={itemStyle}>
-              {entry}
+          {showIconRow ? (
+            <li style={capabilityIconsRowStyle}>
+              {iconCapabilityEntries.map((entry) => {
+                const icon = (
+                  <img src={entry.iconSrc} alt="" aria-hidden style={capabilityIconImageStyle} />
+                );
+
+                if (entry.id === 'building') {
+                  return (
+                    <button
+                      key={entry.id}
+                      type="button"
+                      aria-label={entry.text}
+                      title={entry.text}
+                      aria-pressed={buildingPanelOpen}
+                      disabled={buildingDisabled}
+                      style={
+                        buildingPanelOpen
+                          ? { ...capabilityIconButtonStyle, ...actionButtonActiveStyle }
+                          : buildingDisabled
+                            ? { ...capabilityIconButtonStyle, ...actionButtonDisabledStyle }
+                            : capabilityIconButtonStyle
+                      }
+                      onClick={onBuildingClick}
+                    >
+                      {icon}
+                    </button>
+                  );
+                }
+
+                if (entry.id === 'extraction') {
+                  return (
+                    <button
+                      key={entry.id}
+                      type="button"
+                      aria-label={entry.text}
+                      title={entry.text}
+                      aria-pressed={extractPanelOpen}
+                      disabled={extractDisabled}
+                      style={
+                        extractPanelOpen
+                          ? { ...capabilityIconButtonStyle, ...actionButtonActiveStyle }
+                          : extractDisabled
+                            ? { ...capabilityIconButtonStyle, ...actionButtonDisabledStyle }
+                            : capabilityIconButtonStyle
+                      }
+                      onClick={onExtractClick}
+                    >
+                      {icon}
+                    </button>
+                  );
+                }
+
+                return (
+                  <span
+                    key={entry.id}
+                    title={entry.text}
+                    aria-label={entry.text}
+                    style={capabilityIconDisplayStyle}
+                  >
+                    {icon}
+                  </span>
+                );
+              })}
+              {showMoveTo ? (
+                <button
+                  type="button"
+                  aria-label="Move"
+                  title="Move"
+                  aria-pressed={moveModeActive}
+                  disabled={moveDisabled}
+                  style={
+                    moveModeActive
+                      ? { ...moveIconButtonStyle, ...actionButtonActiveStyle }
+                      : moveDisabled
+                        ? { ...moveIconButtonStyle, ...actionButtonDisabledStyle }
+                        : moveIconButtonStyle
+                  }
+                  onClick={onMoveClick}
+                >
+                  <img src={moveIcon} alt="" aria-hidden style={capabilityIconImageStyle} />
+                </button>
+              ) : null}
+            </li>
+          ) : null}
+          {textCapabilityEntries.map((entry) => (
+            <li key={entry.id} style={itemStyle}>
+              {entry.text}
             </li>
           ))}
         </ul>
       )}
-      {showActions ? (
-        <div style={actionsStyle}>
-          {showMoveTo ? (
-            <button
-              type="button"
-              style={
-                moveModeActive
-                  ? { ...actionButtonStyle, ...actionButtonActiveStyle }
-                  : moveDisabled
-                    ? { ...actionButtonStyle, ...actionButtonDisabledStyle }
-                    : actionButtonStyle
-              }
-              aria-pressed={moveModeActive}
-              disabled={moveDisabled}
-              onClick={onMoveClick}
-            >
-              Move
-            </button>
-          ) : null}
-          {showSeeCargo ? (
-            <button type="button" style={actionButtonStyle}>
-              Cargo
-            </button>
-          ) : null}
-          {showExtract ? (
-            <button type="button" style={actionButtonStyle}>
-              Extract
-            </button>
-          ) : null}
-        </div>
-      ) : null}
       {moveError != null ? (
         <p style={moveErrorStyle} role="alert">
           {moveError}

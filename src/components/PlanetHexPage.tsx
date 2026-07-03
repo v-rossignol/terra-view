@@ -10,12 +10,18 @@ import { buildMovementTrackFromUnit, movementTrackFromMoveOrder } from '../utils
 import { useFollowSelectedMovingUnit } from '../hooks/useFollowSelectedMovingUnit';
 import { formatHexCoords } from '../utils/hexCoords';
 import { LOGIN_PATH } from '../utils/authErrors';
+import { technicsPath } from '../utils/technics';
+import { getExtractErrorMessage, getStopExtractionErrorMessage } from '../utils/extractErrors';
+import { getDropCargoErrorMessage } from '../utils/dropErrors';
 import { getMoveErrorMessage } from '../utils/moveErrors';
 import { getStopErrorMessage } from '../utils/stopErrors';
 import { SingleHexView, type MoveDestination } from './game/SingleHexView';
 import { ClientHeader } from './ui/ClientHeader';
 import { HexResourcesPanel } from './ui/HexResourcesPanel';
 import { UnitPanel } from './ui/UnitPanel';
+import { UnitCargoOverlay } from './ui/UnitCargoOverlay';
+import { UnitExtractionOverlay } from './ui/UnitExtractionOverlay';
+import { BuildingPanel } from './ui/BuildingPanel';
 import type { Vec2Local } from '../types/player';
 import { getUnitHexCoords } from '../utils/unitLocation';
 import { getBiomeAllowedMoveDestinationHexes } from '../utils/unitMovement';
@@ -96,10 +102,16 @@ export function PlanetHexPage() {
   } = usePlanetHex(planetId, q, r);
   const [selectedUnitId, setSelectedUnitId] = useState<string | null>(null);
   const [moveModeActive, setMoveModeActive] = useState(false);
+  const [cargoPanelOpen, setCargoPanelOpen] = useState(false);
+  const [extractPanelOpen, setExtractPanelOpen] = useState(false);
+  const [buildingPanelOpen, setBuildingPanelOpen] = useState(false);
   const [pendingMoveDestination, setPendingMoveDestination] = useState<MoveDestination | null>(null);
   const [moveError, setMoveError] = useState<string | null>(null);
   const [isSubmittingMove, setIsSubmittingMove] = useState(false);
   const [isSubmittingStop, setIsSubmittingStop] = useState(false);
+  const [isSubmittingExtract, setIsSubmittingExtract] = useState(false);
+  const [pendingExtractResourceId, setPendingExtractResourceId] = useState<string | null>(null);
+  const [pendingDropResourceId, setPendingDropResourceId] = useState<string | null>(null);
   const [movementTracks, setMovementTracks] = useState<Record<string, UnitMovementTrack>>({});
   const selectedUnitIdRef = useRef<string | null>(null);
   const handleSocketUnitUpdate = useCallback((payload: UnitUpdatePayload) => {
@@ -123,6 +135,12 @@ export function PlanetHexPage() {
     planetUnits,
     handleSocketUnitUpdate,
   );
+
+  useEffect(() => {
+    if (status === 'unauthorized') {
+      navigate(technicsPath('unauthorized'), { replace: true });
+    }
+  }, [navigate, status]);
 
   useEffect(() => {
     setMovementTracks((current) => {
@@ -152,19 +170,30 @@ export function PlanetHexPage() {
   }, [displayUnits]);
 
   useEffect(() => {
-    if (!moveModeActive) {
+    if (!moveModeActive && !cargoPanelOpen && !extractPanelOpen && !buildingPanelOpen) {
       return;
     }
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
-        setMoveModeActive(false);
+        if (cargoPanelOpen) {
+          setCargoPanelOpen(false);
+        }
+        if (extractPanelOpen) {
+          setExtractPanelOpen(false);
+        }
+        if (buildingPanelOpen) {
+          setBuildingPanelOpen(false);
+        }
+        if (moveModeActive) {
+          setMoveModeActive(false);
+        }
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [moveModeActive]);
+  }, [moveModeActive, cargoPanelOpen, extractPanelOpen, buildingPanelOpen]);
 
   const selectedUnit = useMemo(
     () => displayUnits.find((unit) => unit.id === selectedUnitId) ?? null,
@@ -187,6 +216,9 @@ export function PlanetHexPage() {
 
     setSelectedUnitId(null);
     setMoveModeActive(false);
+    setCargoPanelOpen(false);
+    setExtractPanelOpen(false);
+    setBuildingPanelOpen(false);
     setPendingMoveDestination(null);
     setMoveError(null);
   }, [coords?.q, coords?.r]);
@@ -199,6 +231,9 @@ export function PlanetHexPage() {
       const next = current === unit.id ? null : unit.id;
       if (next == null) {
         setMoveModeActive(false);
+        setCargoPanelOpen(false);
+        setExtractPanelOpen(false);
+        setBuildingPanelOpen(false);
         setPendingMoveDestination(null);
       }
       return next;
@@ -207,26 +242,144 @@ export function PlanetHexPage() {
 
   const handleMoveClick = useCallback(() => {
     setMoveError(null);
+    setCargoPanelOpen(false);
+    setExtractPanelOpen(false);
+    setBuildingPanelOpen(false);
     setMoveModeActive((current) => !current);
   }, []);
 
+  const handleCargoClick = useCallback(() => {
+    setMoveError(null);
+    setMoveModeActive(false);
+    setExtractPanelOpen(false);
+    setBuildingPanelOpen(false);
+    setCargoPanelOpen((current) => !current);
+  }, []);
+
+  const handleExtractClick = useCallback(() => {
+    setMoveError(null);
+    setMoveModeActive(false);
+    setCargoPanelOpen(false);
+    setBuildingPanelOpen(false);
+    setExtractPanelOpen((current) => !current);
+  }, []);
+
+  const handleBuildingClick = useCallback(() => {
+    setMoveError(null);
+    setMoveModeActive(false);
+    setCargoPanelOpen(false);
+    setExtractPanelOpen(false);
+    setBuildingPanelOpen((current) => !current);
+  }, []);
+
+  const handleCargoOverlayClose = useCallback(() => {
+    setCargoPanelOpen(false);
+  }, []);
+
+  const handleExtractOverlayClose = useCallback(() => {
+    setExtractPanelOpen(false);
+  }, []);
+
+  const handleBuildingPanelClose = useCallback(() => {
+    setBuildingPanelOpen(false);
+  }, []);
+
+  const handleDropCargo = useCallback(
+    (resource: { id: string; quantity: number }) => {
+      if (selectedUnitId == null || planetId == null || pendingDropResourceId != null || selectedUnit == null) {
+        return;
+      }
+
+      setMoveError(null);
+      setPendingDropResourceId(resource.id);
+
+      void unitService
+        .dropCargo(selectedUnitId, {
+          planetId,
+          resourceType: resource.id,
+          amount: resource.quantity,
+        })
+        .then((result) => {
+          const nextCargo = { ...selectedUnit.cargo };
+          const remaining = (nextCargo[resource.id] ?? 0) - result.droppedAmount;
+
+          if (remaining <= 0) {
+            delete nextCargo[resource.id];
+          } else {
+            nextCargo[resource.id] = remaining;
+          }
+
+          patchUnit({
+            unitId: selectedUnitId,
+            status: 'idle',
+            location: selectedUnit.location,
+            cargo: nextCargo,
+          });
+        })
+        .catch((error: unknown) => {
+          setMoveError(getDropCargoErrorMessage(error));
+        })
+        .finally(() => {
+          setPendingDropResourceId(null);
+        });
+    },
+    [selectedUnitId, selectedUnit, planetId, pendingDropResourceId, patchUnit],
+  );
+
+  const handleStartExtract = useCallback(
+    (resourceType: string) => {
+      if (selectedUnitId == null || planetId == null || isSubmittingExtract) {
+        return;
+      }
+
+      setMoveError(null);
+      setPendingExtractResourceId(resourceType);
+      setIsSubmittingExtract(true);
+
+      void unitService
+        .startExtract(selectedUnitId, { planetId, resourceType })
+        .then(() => {
+          if (selectedUnit != null) {
+            patchUnit({
+              unitId: selectedUnitId,
+              status: 'extracting',
+              location: selectedUnit.location,
+            });
+          }
+          setExtractPanelOpen(false);
+        })
+        .catch((error: unknown) => {
+          setMoveError(getExtractErrorMessage(error));
+        })
+        .finally(() => {
+          setIsSubmittingExtract(false);
+          setPendingExtractResourceId(null);
+        });
+    },
+    [selectedUnitId, selectedUnit, planetId, isSubmittingExtract, patchUnit],
+  );
+
   const handleStopClick = useCallback(() => {
-    if (selectedUnitId == null || planetId == null || isSubmittingStop) {
+    if (selectedUnitId == null || planetId == null || isSubmittingStop || selectedUnit == null) {
       return;
     }
 
     setMoveError(null);
     setIsSubmittingStop(true);
 
-    void unitService
-      .stopUnit(selectedUnitId, { planetId })
+    const isExtracting = selectedUnit.status === 'extracting';
+    const stopRequest = isExtracting
+      ? unitService.stopExtraction(selectedUnitId, { planetId })
+      : unitService.stopUnit(selectedUnitId, { planetId });
+
+    void stopRequest
       .catch((error: unknown) => {
-        setMoveError(getStopErrorMessage(error));
+        setMoveError(isExtracting ? getStopExtractionErrorMessage(error) : getStopErrorMessage(error));
       })
       .finally(() => {
         setIsSubmittingStop(false);
       });
-  }, [selectedUnitId, planetId, isSubmittingStop]);
+  }, [selectedUnitId, selectedUnit, planetId, isSubmittingStop]);
 
   const handleMoveDestinationSelect = useCallback(
     (hex_coords: HexCoords, position: Vec2Local) => {
@@ -298,7 +451,7 @@ export function PlanetHexPage() {
   const headerStatus =
     playerName != null && planetName != null
       ? 'ready'
-      : status === 'loading'
+      : status === 'loading' || status === 'unauthorized'
         ? 'loading'
         : 'error';
 
@@ -317,7 +470,9 @@ export function PlanetHexPage() {
       />
 
       <main style={status === 'ready' && hex != null ? contentStyle : centeredContentStyle}>
-        {status === 'loading' && <p style={{ color: '#9a9a9a' }}>Loading hex…</p>}
+        {(status === 'loading' || status === 'unauthorized') && (
+          <p style={{ color: '#9a9a9a' }}>Loading hex…</p>
+        )}
 
         {status === 'error' && error != null && (
           <>
@@ -356,12 +511,53 @@ export function PlanetHexPage() {
             <UnitPanel
               unit={selectedUnit}
               moveModeActive={moveModeActive}
+              cargoPanelOpen={cargoPanelOpen}
+              extractPanelOpen={extractPanelOpen}
+              buildingPanelOpen={buildingPanelOpen}
               moveError={moveError}
               moveDisabled={isSubmittingMove || selectedUnit?.status === 'moving'}
+              extractDisabled={
+                isSubmittingExtract ||
+                selectedUnit?.status === 'moving' ||
+                selectedUnit?.status === 'extracting'
+              }
+              buildingDisabled={
+                selectedUnit?.status === 'moving' ||
+                selectedUnit?.status === 'extracting'
+              }
               stopDisabled={isSubmittingStop}
               onMoveClick={handleMoveClick}
+              onCargoClick={handleCargoClick}
+              onExtractClick={handleExtractClick}
+              onBuildingClick={handleBuildingClick}
               onStopClick={handleStopClick}
             />
+            {cargoPanelOpen && selectedUnit != null ? (
+              <UnitCargoOverlay
+                unit={selectedUnit}
+                onClose={handleCargoOverlayClose}
+                onDrop={handleDropCargo}
+                droppingResourceId={pendingDropResourceId}
+              />
+            ) : null}
+            {extractPanelOpen && selectedUnit != null ? (
+              <UnitExtractionOverlay
+                unit={selectedUnit}
+                biome={hex.biome}
+                extractError={moveError}
+                pendingResourceId={pendingExtractResourceId}
+                onClose={handleExtractOverlayClose}
+                onStartExtract={handleStartExtract}
+              />
+            ) : null}
+            {buildingPanelOpen && selectedUnit != null ? (
+              <BuildingPanel
+                unit={selectedUnit}
+                planetId={planetId ?? null}
+                hexCoords={coords}
+                onClose={handleBuildingPanelClose}
+              />
+            ) : null}
             <aside style={metaStyle}>
               <p style={{ margin: '0 0 0.35rem', fontWeight: 600 }}>{hex.biome}</p>
               <p style={{ margin: 0, color: '#b0b0b0' }}>Danger level: {hex.dangerLevel}</p>

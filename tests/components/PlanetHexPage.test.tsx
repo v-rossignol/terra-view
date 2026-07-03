@@ -1,10 +1,20 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import axios from 'axios';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { PlanetHexPage } from '@components/PlanetHexPage';
 import type { UnitInstance } from '../../src/types/unit';
 import type { UnitUpdatePayload } from '../../src/types/socket';
+
+const navigate = vi.fn();
+
+vi.mock('react-router-dom', async () => {
+  const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
+  return {
+    ...actual,
+    useNavigate: () => navigate,
+  };
+});
 
 let latestPatchUnit: ((payload: UnitUpdatePayload) => void) | null = null;
 
@@ -82,6 +92,8 @@ vi.mock('@services/unitService', () => ({
   unitService: {
     startMove: vi.fn(),
     stopUnit: vi.fn(),
+    startExtract: vi.fn(),
+    stopExtraction: vi.fn(),
   },
 }));
 
@@ -91,6 +103,8 @@ import { unitService } from '@services/unitService';
 const mockedHook = vi.mocked(usePlanetHex);
 const mockedStartMove = vi.mocked(unitService.startMove);
 const mockedStopUnit = vi.mocked(unitService.stopUnit);
+const mockedStartExtract = vi.mocked(unitService.startExtract);
+const mockedStopExtraction = vi.mocked(unitService.stopExtraction);
 
 const mobileUnit = {
   id: 'unit-1',
@@ -105,6 +119,7 @@ const mobileUnit = {
   createdAt: '2026-01-01T00:00:00.000Z',
   updatedAt: '2026-01-01T00:00:00.000Z',
   metadata: {},
+  cargo: { wood: 50, 'iron-ore': 10 },
   type: {
     id: 'scout-x1',
     name: 'Scout X1',
@@ -114,9 +129,22 @@ const mobileUnit = {
     speed: 2,
     environments: ['forest', 'ocean'],
     rules: [{ range: 'hexagon' as const, value: 1 }],
-    capabilities: {},
+    capabilities: {
+      cargo: { size: 1000 },
+    },
     description: null,
     metadata: {},
+  },
+};
+
+const extractingCapableUnit = {
+  ...mobileUnit,
+  type: {
+    ...mobileUnit.type,
+    capabilities: {
+      cargo: { size: 1000 },
+      extraction: { speed: 5, types: ['*'] },
+    },
   },
 };
 
@@ -152,6 +180,34 @@ describe('PlanetHexPage', () => {
     );
 
     expect(screen.getByText('Loading hex…')).toBeInTheDocument();
+  });
+
+  it('redirects to the unauthorized technics page on 401', () => {
+    mockedHook.mockReturnValue({
+      status: 'unauthorized',
+      planetName: null,
+      planetRadius: null,
+      coords: { q: 2, r: 3 },
+      hex: null,
+      neighbors: [],
+      hexResources: null,
+      playerId: null,
+      playerName: null,
+      starName: null,
+      starSystemHref: null,
+      planetUnits: [],
+      error: null,
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/planet-1/2/3']}>
+        <Routes>
+          <Route path="/:planetId/:q/:r" element={<PlanetHexPage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(navigate).toHaveBeenCalledWith('/technics?code=unauthorized', { replace: true });
   });
 
   it('shows the hex and resource panel when ready', () => {
@@ -554,6 +610,205 @@ describe('PlanetHexPage', () => {
 
     await waitFor(() => {
       expect(screen.getByRole('alert')).toHaveTextContent('Unit is not moving.');
+    });
+  });
+
+  it('sends a stop-extraction order when Stop is clicked on an extracting unit', async () => {
+    mockedStopExtraction.mockResolvedValue({
+      unitId: 'unit-1',
+      status: 'idle',
+      extractedAmount: 12,
+    });
+
+    mockedHook.mockReturnValue({
+      status: 'ready',
+      planetName: 'Astra Prime',
+      planetRadius: 10,
+      coords: { q: 2, r: 3 },
+      hex: {
+        biome: 'forest',
+        resources: [],
+        dangerLevel: 4,
+        coordinates: { q: 2, r: 3 },
+      },
+      neighbors: [],
+      hexResources: null,
+      playerId: 'player-1',
+      playerName: 'Ada',
+      starName: 'Sol',
+      starSystemHref: '/solaris/system-1',
+      planetUnits: [{ ...mobileUnit, status: 'extracting' }],
+      error: null,
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/planet-1/2/3']}>
+        <Routes>
+          <Route path="/:planetId/:q/:r" element={<PlanetHexPage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(screen.getByTestId('select-unit'));
+    fireEvent.click(screen.getByRole('button', { name: 'Stop' }));
+
+    await waitFor(() => {
+      expect(mockedStopExtraction).toHaveBeenCalledWith('unit-1', { planetId: 'planet-1' });
+      expect(mockedStopUnit).not.toHaveBeenCalled();
+    });
+  });
+
+  it('shows a stop-extraction error when the server rejects the order', async () => {
+    mockedStopExtraction.mockRejectedValue(
+      new axios.AxiosError(
+        'Request failed',
+        '409',
+        undefined,
+        undefined,
+        {
+          status: 409,
+          statusText: 'Conflict',
+          headers: {},
+          config: { headers: new axios.AxiosHeaders() },
+          data: { statusCode: 409, message: 'Unit is not extracting.' },
+        },
+      ),
+    );
+
+    mockedHook.mockReturnValue({
+      status: 'ready',
+      planetName: 'Astra Prime',
+      planetRadius: 10,
+      coords: { q: 2, r: 3 },
+      hex: {
+        biome: 'forest',
+        resources: [],
+        dangerLevel: 4,
+        coordinates: { q: 2, r: 3 },
+      },
+      neighbors: [],
+      hexResources: null,
+      playerId: 'player-1',
+      playerName: 'Ada',
+      starName: 'Sol',
+      starSystemHref: '/solaris/system-1',
+      planetUnits: [{ ...mobileUnit, status: 'extracting' }],
+      error: null,
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/planet-1/2/3']}>
+        <Routes>
+          <Route path="/:planetId/:q/:r" element={<PlanetHexPage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(screen.getByTestId('select-unit'));
+    fireEvent.click(screen.getByRole('button', { name: 'Stop' }));
+
+    await waitFor(() => {
+      expect(screen.getByRole('alert')).toHaveTextContent('Unit is not extracting.');
+    });
+  });
+
+  it('opens the cargo panel when view cargo is clicked on a selected unit', () => {
+    mockedHook.mockReturnValue({
+      status: 'ready',
+      planetName: 'Astra Prime',
+      planetRadius: 10,
+      coords: { q: 2, r: 3 },
+      hex: {
+        biome: 'forest',
+        resources: [],
+        dangerLevel: 4,
+        coordinates: { q: 2, r: 3 },
+      },
+      neighbors: [],
+      hexResources: null,
+      playerId: 'player-1',
+      playerName: 'Ada',
+      starName: 'Sol',
+      starSystemHref: '/solaris/system-1',
+      planetUnits: [mobileUnit],
+      error: null,
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/planet-1/2/3']}>
+        <Routes>
+          <Route path="/:planetId/:q/:r" element={<PlanetHexPage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(screen.getByTestId('select-unit'));
+    fireEvent.click(screen.getByRole('button', { name: 'View cargo' }));
+
+    const cargoDialog = screen.getByRole('dialog', { name: 'Scout X1 cargo' });
+    expect(cargoDialog).toBeInTheDocument();
+    expect(within(cargoDialog).getByText('60 / 1000')).toBeInTheDocument();
+    expect(within(cargoDialog).getByRole('progressbar', { name: 'Cargo space used' })).toHaveAttribute(
+      'aria-valuenow',
+      '60',
+    );
+    expect(within(cargoDialog).getByText('Wood')).toBeInTheDocument();
+    expect(within(cargoDialog).getByText('50')).toBeInTheDocument();
+    expect(within(cargoDialog).getByText('Iron ore')).toBeInTheDocument();
+    expect(within(cargoDialog).getByText('10')).toBeInTheDocument();
+  });
+
+  it('starts extraction when Go is clicked in the extraction panel', async () => {
+    mockedStartExtract.mockResolvedValue({
+      unitId: 'unit-1',
+      status: 'extracting',
+      resourceType: 'wood',
+      startedAt: '2026-01-01T00:00:00.000Z',
+    });
+
+    mockedHook.mockReturnValue({
+      status: 'ready',
+      planetName: 'Astra Prime',
+      planetRadius: 10,
+      coords: { q: 2, r: 3 },
+      hex: {
+        biome: 'forest',
+        resources: [],
+        dangerLevel: 4,
+        coordinates: { q: 2, r: 3 },
+      },
+      neighbors: [],
+      hexResources: null,
+      playerId: 'player-1',
+      playerName: 'Ada',
+      starName: 'Sol',
+      starSystemHref: '/solaris/system-1',
+      planetUnits: [extractingCapableUnit],
+      error: null,
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/planet-1/2/3']}>
+        <Routes>
+          <Route path="/:planetId/:q/:r" element={<PlanetHexPage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(screen.getByTestId('select-unit'));
+    fireEvent.click(screen.getByRole('button', { name: 'Extraction: speed 5, types *' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Extract Wood' }));
+
+    await waitFor(() => {
+      expect(mockedStartExtract).toHaveBeenCalledWith('unit-1', {
+        planetId: 'planet-1',
+        resourceType: 'wood',
+      });
+    });
+
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog', { name: 'Extraction' })).not.toBeInTheDocument();
+      expect(screen.getByText('Extracting')).toBeInTheDocument();
     });
   });
 });

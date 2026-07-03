@@ -33,6 +33,7 @@ const baseUnit = (overrides: Partial<UnitInstance> = {}): UnitInstance => ({
       arrivalAt: '2026-01-01T00:05:00.000Z',
     },
   },
+  cargo: {},
   type: {
     id: 'scout-x1',
     name: 'Scout-X1',

@@ -69,4 +69,27 @@ describe('FirstPage', () => {
 
     expect(navigate).toHaveBeenCalledWith('/planet-1/2/3');
   });
+
+  it('redirects to the unauthorized technics page on 401', () => {
+    mockedHook.mockReturnValue({
+      status: 'unauthorized',
+      playerName: null,
+      playerId: null,
+      starName: null,
+      starSystemHref: null,
+      planetName: null,
+      planet: null,
+      playerHex: null,
+      planetUnits: [],
+      error: null,
+    });
+
+    render(
+      <MemoryRouter>
+        <FirstPage />
+      </MemoryRouter>,
+    );
+
+    expect(navigate).toHaveBeenCalledWith('/technics?code=unauthorized', { replace: true });
+  });
 });

@@ -19,6 +19,7 @@ const baseUnit = (overrides: Partial<UnitInstance> = {}): UnitInstance => ({
   createdAt: '2026-01-01T00:00:00.000Z',
   updatedAt: '2026-01-01T00:00:00.000Z',
   metadata: {},
+  cargo: {},
   type: {
     id: 'scout-x1',
     name: 'Scout-X1',
@@ -103,6 +104,32 @@ describe('unitLocation', () => {
       status: 'idle',
       location: updatedLocation,
     });
+  });
+
+  it('merges cargo from UNIT_UPDATE when present', () => {
+    const units = [baseUnit({ cargo: { iron: 2 } })];
+
+    const result = applyUnitUpdate(units, {
+      unitId: 'unit-1',
+      status: 'extracting',
+      location: units[0].location,
+      cargo: { iron: 5 },
+    });
+
+    expect(result[0].cargo).toEqual({ iron: 5 });
+    expect(result[0].status).toBe('extracting');
+  });
+
+  it('preserves existing cargo when UNIT_UPDATE omits cargo', () => {
+    const units = [baseUnit({ cargo: { iron: 2 } })];
+
+    const result = applyUnitUpdate(units, {
+      unitId: 'unit-1',
+      status: 'idle',
+      location: units[0].location,
+    });
+
+    expect(result[0].cargo).toEqual({ iron: 2 });
   });
 
   it('returns the same array when UNIT_UPDATE targets an unknown unit', () => {

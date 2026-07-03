@@ -1,12 +1,14 @@
+import { PLANET_HEX_LAYOUT_WIDTH, PLANET_HEX_LAYOUT_HEIGHT } from '@infinity/shared-config';
+
 export interface HexLayoutConfig {
   hexWidth: number;
   hexHeight: number;
 }
 
-/** Default pointy-top layout (documentation/wip/grid/grid.css dimensions). */
+/** Default pointy-top layout — dimensions shared with the server via @infinity/shared-config. */
 export const DEFAULT_HEX_LAYOUT: HexLayoutConfig = {
-  hexWidth: 80,
-  hexHeight: 92,
+  hexWidth: PLANET_HEX_LAYOUT_WIDTH,
+  hexHeight: PLANET_HEX_LAYOUT_HEIGHT,
 };
 
 export interface ScreenPoint {

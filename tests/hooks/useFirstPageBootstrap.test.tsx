@@ -219,19 +219,18 @@ describe('useFirstPageBootstrap', () => {
     expect(result.current.starSystemHref).toBeNull();
   });
 
-  it('returns an auth error when the session is missing', async () => {
+  it('returns an unauthorized status when the session is missing', async () => {
     mockedAuth.getCurrentUser.mockRejectedValue(createAxiosError(401));
 
     const { result } = renderHook(() => useFirstPageBootstrap());
 
     await waitFor(() => {
-      expect(result.current.status).toBe('error');
+      expect(result.current.status).toBe('unauthorized');
     });
 
     expect(result.current.playerName).toBeNull();
     expect(result.current.planetName).toBeNull();
-    expect(result.current.error).toContain('not signed in');
-    expect(result.current.error).toContain('/stellar-gate/');
+    expect(result.current.error).toBeNull();
   });
 
   it('returns an error when the player is not on a planet', async () => {

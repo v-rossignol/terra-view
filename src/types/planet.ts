@@ -1,4 +1,6 @@
-export type BiomeType = 'desert' | 'forest' | 'ocean' | 'mountain' | 'ice' | 'volcanic' | 'plain';
+import type { HexBiome } from '@infinity/shared-config';
+
+export type BiomeType = HexBiome;
 
 export interface HexCoords {
   q: number;

@@ -17,7 +17,7 @@ describe('unitMovement', () => {
     { coordinates: { q: 3, r: 3 }, biome: 'desert' },
   ];
 
-  it('returns origin and game-logic neighbors', () => {
+  it('returns origin and rendered-surface neighbors', () => {
     const destinations = getValidMoveDestinationHexes(origin, radius);
 
     expect(destinations).toHaveLength(7);

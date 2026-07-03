@@ -1,8 +1,9 @@
-import { useCallback } from 'react';
+import { useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useFirstPageBootstrap } from '../hooks/useFirstPageBootstrap';
 import { usePlanetUnitsWithSocket } from '../hooks/usePlanetSocket';
 import type { HexCoords } from '../types/planet';
+import { technicsPath } from '../utils/technics';
 import { HexGrid } from './game/HexGrid';
 import { ClientHeader } from './ui/ClientHeader';
 
@@ -49,6 +50,12 @@ export function FirstPage() {
     useFirstPageBootstrap();
   const { units: displayUnits } = usePlanetUnitsWithSocket(planet?._id, planetUnits);
 
+  useEffect(() => {
+    if (status === 'unauthorized') {
+      navigate(technicsPath('unauthorized'), { replace: true });
+    }
+  }, [navigate, status]);
+
   const handleHexClick = useCallback(
     (coords: HexCoords) => {
       if (planet == null) {
@@ -67,10 +74,12 @@ export function FirstPage() {
         starName={starName}
         starSystemHref={starSystemHref}
         planetName={planetName}
-        status={status}
+        status={status === 'unauthorized' ? 'loading' : status}
       />
       <main style={status === 'ready' ? contentStyle : centeredContentStyle}>
-        {status === 'loading' && <p style={{ color: '#9a9a9a' }}>Connecting…</p>}
+        {(status === 'loading' || status === 'unauthorized') && (
+          <p style={{ color: '#9a9a9a' }}>Connecting…</p>
+        )}
 
         {status === 'error' && (
           <>

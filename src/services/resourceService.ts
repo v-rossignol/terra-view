@@ -1,15 +1,14 @@
 import type { PlanetHexResources } from '../types/resource';
-import { api } from './api';
+import { dedupedGet } from './api';
 
 export const resourceService = {
-  async getPlanetHexResources(
+  getPlanetHexResources(
     planetId: string,
     q: number,
     r: number,
   ): Promise<PlanetHexResources> {
-    const response = await api.get<PlanetHexResources>(
+    return dedupedGet<PlanetHexResources>(
       `/resources/planet/${encodeURIComponent(planetId)}/hex/${q}/${r}`,
     );
-    return response.data;
   },
 };

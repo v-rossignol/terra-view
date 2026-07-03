@@ -1,3 +1,4 @@
+import { ENTERABLE_PLANET_TYPES } from '@infinity/shared-config';
 import { HexGrid } from './game/HexGrid';
 import { HexResourcesPanel } from './ui/HexResourcesPanel';
 import { useHexResourceHover } from '../hooks/useHexResourceHover';
@@ -97,7 +98,7 @@ const metaStyle: React.CSSProperties = {
   color: '#9a9a9a',
 };
 
-const PLANET_TYPES: PlanetType[] = ['rocky', 'ice', 'lava'];
+const PLANET_TYPES: readonly PlanetType[] = ENTERABLE_PLANET_TYPES;
 
 export function PlanetModelerPage() {
   const {

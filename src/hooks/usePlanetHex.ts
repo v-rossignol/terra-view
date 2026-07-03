@@ -8,11 +8,11 @@ import type { HexCoords, PlanetHexagon } from '../types/planet';
 import type { PlanetHexResources } from '../types/resource';
 import type { UnitInstance } from '../types/unit';
 import { getErrorMessage } from '../utils/helpers';
-import { isUnauthorizedError, UNAUTHORIZED_ERROR_MESSAGE } from '../utils/authErrors';
+import { isUnauthorizedError } from '../utils/authErrors';
 import { isHexInBounds, parseHexCoord } from '../utils/hexCoords';
 import { findVisualNeighborHexagons } from '../utils/planetGrid';
 
-export type PlanetHexStatus = 'loading' | 'ready' | 'error';
+export type PlanetHexStatus = 'loading' | 'ready' | 'error' | 'unauthorized';
 
 export interface PlanetHexState {
   status: PlanetHexStatus;
@@ -187,10 +187,10 @@ export function usePlanetHex(
 
         if (isUnauthorizedError(error)) {
           setState({
-            status: 'error',
+            status: 'unauthorized',
             ...emptyState,
             coords: { q, r },
-            error: UNAUTHORIZED_ERROR_MESSAGE,
+            error: null,
           });
           return;
         }
