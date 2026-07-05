@@ -1,3 +1,5 @@
+import { hasEnoughCargoForRecipe, getBuildFootprintCells } from '@infinity/shared-utils';
+import { PLANET_GARAGE_RANGE_HEX } from '@infinity/shared-config';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { usePlanetHex } from '../hooks/usePlanetHex';
@@ -5,9 +7,10 @@ import { usePlanetUnitsWithSocket } from '../hooks/usePlanetSocket';
 import { unitService } from '../services/unitService';
 import type { HexCoords } from '../types/planet';
 import type { UnitUpdatePayload } from '../types/socket';
-import type { UnitInstance, UnitMovementTrack } from '../types/unit';
+import type { UnitInstance, UnitMovementTrack, BuildableUnitType, CargoResource } from '../types/unit';
 import { buildMovementTrackFromUnit, movementTrackFromMoveOrder } from '../utils/unitMovementTrack';
 import { useFollowSelectedMovingUnit } from '../hooks/useFollowSelectedMovingUnit';
+import { useUnitsWithProjectedExtractionCargo } from '../hooks/useUnitsWithProjectedExtractionCargo';
 import { formatHexCoords } from '../utils/hexCoords';
 import { LOGIN_PATH } from '../utils/authErrors';
 import { technicsPath } from '../utils/technics';
@@ -15,6 +18,10 @@ import { getExtractErrorMessage, getStopExtractionErrorMessage } from '../utils/
 import { getDropCargoErrorMessage } from '../utils/dropErrors';
 import { getMoveErrorMessage } from '../utils/moveErrors';
 import { getStopErrorMessage } from '../utils/stopErrors';
+import { getBuildErrorMessage } from '../utils/buildErrors';
+import { getParkErrorMessage, getUnparkErrorMessage } from '../utils/parkErrors';
+import { getTransferCargoErrorMessage } from '../utils/transferErrors';
+import { findParkableGarages } from '../utils/unitParking';
 import { SingleHexView, type MoveDestination } from './game/SingleHexView';
 import { ClientHeader } from './ui/ClientHeader';
 import { HexResourcesPanel } from './ui/HexResourcesPanel';
@@ -22,8 +29,9 @@ import { UnitPanel } from './ui/UnitPanel';
 import { UnitCargoOverlay } from './ui/UnitCargoOverlay';
 import { UnitExtractionOverlay } from './ui/UnitExtractionOverlay';
 import { BuildingPanel } from './ui/BuildingPanel';
+import { UnitGarageOverlay } from './ui/UnitGarageOverlay';
 import type { Vec2Local } from '../types/player';
-import { getUnitHexCoords } from '../utils/unitLocation';
+import { getUnitHexCoords, getUnitHexLocalPosition } from '../utils/unitLocation';
 import { getBiomeAllowedMoveDestinationHexes } from '../utils/unitMovement';
 
 const layoutStyle: React.CSSProperties = {
@@ -105,6 +113,11 @@ export function PlanetHexPage() {
   const [cargoPanelOpen, setCargoPanelOpen] = useState(false);
   const [extractPanelOpen, setExtractPanelOpen] = useState(false);
   const [buildingPanelOpen, setBuildingPanelOpen] = useState(false);
+  const [garagePanelOpen, setGaragePanelOpen] = useState(false);
+  const [garageAreaHovered, setGarageAreaHovered] = useState(false);
+  const [buildModeUnit, setBuildModeUnit] = useState<BuildableUnitType | null>(null);
+  const [pendingBuildPosition, setPendingBuildPosition] = useState<Vec2Local | null>(null);
+  const [isSubmittingBuild, setIsSubmittingBuild] = useState(false);
   const [pendingMoveDestination, setPendingMoveDestination] = useState<MoveDestination | null>(null);
   const [moveError, setMoveError] = useState<string | null>(null);
   const [isSubmittingMove, setIsSubmittingMove] = useState(false);
@@ -112,6 +125,11 @@ export function PlanetHexPage() {
   const [isSubmittingExtract, setIsSubmittingExtract] = useState(false);
   const [pendingExtractResourceId, setPendingExtractResourceId] = useState<string | null>(null);
   const [pendingDropResourceId, setPendingDropResourceId] = useState<string | null>(null);
+  const [isSubmittingPark, setIsSubmittingPark] = useState(false);
+  const [pendingParkGarageId, setPendingParkGarageId] = useState<string | null>(null);
+  const [isSubmittingUnpark, setIsSubmittingUnpark] = useState(false);
+  const [pendingUnparkVehicleId, setPendingUnparkVehicleId] = useState<string | null>(null);
+  const [pendingTransferResourceId, setPendingTransferResourceId] = useState<string | null>(null);
   const [movementTracks, setMovementTracks] = useState<Record<string, UnitMovementTrack>>({});
   const selectedUnitIdRef = useRef<string | null>(null);
   const handleSocketUnitUpdate = useCallback((payload: UnitUpdatePayload) => {
@@ -135,6 +153,7 @@ export function PlanetHexPage() {
     planetUnits,
     handleSocketUnitUpdate,
   );
+  const unitsWithProjectedCargo = useUnitsWithProjectedExtractionCargo(displayUnits, hexResources);
 
   useEffect(() => {
     if (status === 'unauthorized') {
@@ -170,7 +189,7 @@ export function PlanetHexPage() {
   }, [displayUnits]);
 
   useEffect(() => {
-    if (!moveModeActive && !cargoPanelOpen && !extractPanelOpen && !buildingPanelOpen) {
+    if (!moveModeActive && !cargoPanelOpen && !extractPanelOpen && !buildingPanelOpen && !garagePanelOpen && buildModeUnit == null) {
       return;
     }
 
@@ -185,6 +204,14 @@ export function PlanetHexPage() {
         if (buildingPanelOpen) {
           setBuildingPanelOpen(false);
         }
+        if (garagePanelOpen) {
+          setGaragePanelOpen(false);
+          setGarageAreaHovered(false);
+        }
+        if (buildModeUnit != null) {
+          setBuildModeUnit(null);
+          setPendingBuildPosition(null);
+        }
         if (moveModeActive) {
           setMoveModeActive(false);
         }
@@ -193,11 +220,15 @@ export function PlanetHexPage() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [moveModeActive, cargoPanelOpen, extractPanelOpen, buildingPanelOpen]);
+  }, [moveModeActive, cargoPanelOpen, extractPanelOpen, buildingPanelOpen, garagePanelOpen, buildModeUnit]);
 
   const selectedUnit = useMemo(
     () => displayUnits.find((unit) => unit.id === selectedUnitId) ?? null,
     [displayUnits, selectedUnitId],
+  );
+  const selectedUnitForDisplay = useMemo(
+    () => unitsWithProjectedCargo.find((unit) => unit.id === selectedUnitId) ?? null,
+    [unitsWithProjectedCargo, selectedUnitId],
   );
 
   const skipHexResetRef = useFollowSelectedMovingUnit({
@@ -219,6 +250,10 @@ export function PlanetHexPage() {
     setCargoPanelOpen(false);
     setExtractPanelOpen(false);
     setBuildingPanelOpen(false);
+    setGaragePanelOpen(false);
+    setGarageAreaHovered(false);
+    setBuildModeUnit(null);
+    setPendingBuildPosition(null);
     setPendingMoveDestination(null);
     setMoveError(null);
   }, [coords?.q, coords?.r]);
@@ -234,6 +269,10 @@ export function PlanetHexPage() {
         setCargoPanelOpen(false);
         setExtractPanelOpen(false);
         setBuildingPanelOpen(false);
+        setGaragePanelOpen(false);
+        setGarageAreaHovered(false);
+        setBuildModeUnit(null);
+        setPendingBuildPosition(null);
         setPendingMoveDestination(null);
       }
       return next;
@@ -245,6 +284,10 @@ export function PlanetHexPage() {
     setCargoPanelOpen(false);
     setExtractPanelOpen(false);
     setBuildingPanelOpen(false);
+    setGaragePanelOpen(false);
+    setGarageAreaHovered(false);
+    setBuildModeUnit(null);
+    setPendingBuildPosition(null);
     setMoveModeActive((current) => !current);
   }, []);
 
@@ -253,6 +296,10 @@ export function PlanetHexPage() {
     setMoveModeActive(false);
     setExtractPanelOpen(false);
     setBuildingPanelOpen(false);
+    setGaragePanelOpen(false);
+    setGarageAreaHovered(false);
+    setBuildModeUnit(null);
+    setPendingBuildPosition(null);
     setCargoPanelOpen((current) => !current);
   }, []);
 
@@ -261,6 +308,10 @@ export function PlanetHexPage() {
     setMoveModeActive(false);
     setCargoPanelOpen(false);
     setBuildingPanelOpen(false);
+    setGaragePanelOpen(false);
+    setGarageAreaHovered(false);
+    setBuildModeUnit(null);
+    setPendingBuildPosition(null);
     setExtractPanelOpen((current) => !current);
   }, []);
 
@@ -269,7 +320,26 @@ export function PlanetHexPage() {
     setMoveModeActive(false);
     setCargoPanelOpen(false);
     setExtractPanelOpen(false);
+    setGaragePanelOpen(false);
+    setGarageAreaHovered(false);
+    setBuildModeUnit(null);
+    setPendingBuildPosition(null);
     setBuildingPanelOpen((current) => !current);
+  }, []);
+
+  const handleGarageClick = useCallback(() => {
+    setMoveError(null);
+    setMoveModeActive(false);
+    setCargoPanelOpen(false);
+    setExtractPanelOpen(false);
+    setBuildingPanelOpen(false);
+    setBuildModeUnit(null);
+    setPendingBuildPosition(null);
+    setGaragePanelOpen((current) => {
+      const next = !current;
+      setGarageAreaHovered(next);
+      return next;
+    });
   }, []);
 
   const handleCargoOverlayClose = useCallback(() => {
@@ -284,6 +354,96 @@ export function PlanetHexPage() {
     setBuildingPanelOpen(false);
   }, []);
 
+  const handleGaragePanelClose = useCallback(() => {
+    setGaragePanelOpen(false);
+    setGarageAreaHovered(false);
+  }, []);
+
+  const isUnitBuildable = useCallback(
+    (targetType: BuildableUnitType) => {
+      if (selectedUnit == null || targetType.recipe == null) {
+        return false;
+      }
+
+      return hasEnoughCargoForRecipe(selectedUnit.cargo, targetType.recipe.ingredients);
+    },
+    [selectedUnit],
+  );
+
+  const handleBuildUnit = useCallback((unit: BuildableUnitType) => {
+    setMoveError(null);
+    setMoveModeActive(false);
+    setBuildingPanelOpen(false);
+    setGaragePanelOpen(false);
+    setGarageAreaHovered(false);
+    setBuildModeUnit(unit);
+    setPendingBuildPosition(null);
+  }, []);
+
+  const handleBuildTargetSelect = useCallback(
+    (position: Vec2Local) => {
+      if (
+        selectedUnitId == null ||
+        planetId == null ||
+        coords == null ||
+        buildModeUnit == null ||
+        isSubmittingBuild
+      ) {
+        return;
+      }
+
+      setMoveError(null);
+      setPendingBuildPosition(position);
+      setIsSubmittingBuild(true);
+
+      void unitService
+        .startBuild(selectedUnitId, {
+          planetId,
+          targetTypeId: buildModeUnit.id,
+          targetHex: coords,
+          targetPosition: position,
+        })
+        .then((result) => {
+          if (selectedUnit != null) {
+            patchUnit({
+              unitId: selectedUnitId,
+              status: 'building',
+              location: selectedUnit.location,
+              metadata: {
+                ...selectedUnit.metadata,
+                building: {
+                  targetTypeId: result.targetTypeId,
+                  planetId,
+                  hexCoords: coords,
+                  position,
+                  startedAt: result.startedAt,
+                  completedAt: result.completedAt,
+                },
+              },
+            });
+          }
+          setBuildModeUnit(null);
+          setPendingBuildPosition(null);
+        })
+        .catch((error: unknown) => {
+          setPendingBuildPosition(null);
+          setMoveError(getBuildErrorMessage(error));
+        })
+        .finally(() => {
+          setIsSubmittingBuild(false);
+        });
+    },
+    [
+      selectedUnitId,
+      selectedUnit,
+      planetId,
+      coords,
+      buildModeUnit,
+      isSubmittingBuild,
+      patchUnit,
+    ],
+  );
+
   const handleDropCargo = useCallback(
     (resource: { id: string; quantity: number }) => {
       if (selectedUnitId == null || planetId == null || pendingDropResourceId != null || selectedUnit == null) {
@@ -296,12 +456,11 @@ export function PlanetHexPage() {
       void unitService
         .dropCargo(selectedUnitId, {
           planetId,
-          resourceType: resource.id,
-          amount: resource.quantity,
+          resource,
         })
         .then((result) => {
           const nextCargo = { ...selectedUnit.cargo };
-          const remaining = (nextCargo[resource.id] ?? 0) - result.droppedAmount;
+          const remaining = (nextCargo[resource.id] ?? 0) - result.resource.quantity;
 
           if (remaining <= 0) {
             delete nextCargo[resource.id];
@@ -338,12 +497,22 @@ export function PlanetHexPage() {
 
       void unitService
         .startExtract(selectedUnitId, { planetId, resourceType })
-        .then(() => {
-          if (selectedUnit != null) {
+        .then((result) => {
+          if (selectedUnit != null && coords != null) {
             patchUnit({
               unitId: selectedUnitId,
               status: 'extracting',
               location: selectedUnit.location,
+              metadata: {
+                ...selectedUnit.metadata,
+                extraction: {
+                  resourceType: result.resourceType,
+                  planetId,
+                  hexCoords: coords,
+                  startedAt: result.startedAt,
+                  lastTickAt: result.startedAt,
+                },
+              },
             });
           }
           setExtractPanelOpen(false);
@@ -356,7 +525,7 @@ export function PlanetHexPage() {
           setPendingExtractResourceId(null);
         });
     },
-    [selectedUnitId, selectedUnit, planetId, isSubmittingExtract, patchUnit],
+    [selectedUnitId, selectedUnit, planetId, coords, isSubmittingExtract, patchUnit],
   );
 
   const handleStopClick = useCallback(() => {
@@ -368,18 +537,176 @@ export function PlanetHexPage() {
     setIsSubmittingStop(true);
 
     const isExtracting = selectedUnit.status === 'extracting';
+    const isBuilding = selectedUnit.status === 'building';
     const stopRequest = isExtracting
       ? unitService.stopExtraction(selectedUnitId, { planetId })
-      : unitService.stopUnit(selectedUnitId, { planetId });
+      : isBuilding
+        ? unitService.stopBuild(selectedUnitId, { planetId })
+        : unitService.stopUnit(selectedUnitId, { planetId });
 
     void stopRequest
       .catch((error: unknown) => {
-        setMoveError(isExtracting ? getStopExtractionErrorMessage(error) : getStopErrorMessage(error));
+        setMoveError(
+          isExtracting
+            ? getStopExtractionErrorMessage(error)
+            : isBuilding
+              ? getBuildErrorMessage(error)
+              : getStopErrorMessage(error),
+        );
       })
       .finally(() => {
         setIsSubmittingStop(false);
       });
   }, [selectedUnitId, selectedUnit, planetId, isSubmittingStop]);
+
+  const handleParkClick = useCallback(
+    (garageUnitId: string) => {
+      if (
+        selectedUnitId == null ||
+        selectedUnit == null ||
+        planetId == null ||
+        isSubmittingPark
+      ) {
+        return;
+      }
+
+      setMoveError(null);
+      setPendingParkGarageId(garageUnitId);
+      setIsSubmittingPark(true);
+
+      void unitService
+        .parkUnit(selectedUnitId, { planetId, garageUnitId })
+        .then((result) => {
+          patchUnit({
+            unitId: selectedUnitId,
+            status: 'inactive',
+            location: selectedUnit.location,
+            metadata: {
+              ...selectedUnit.metadata,
+              parking: {
+                garageUnitId: result.garageUnitId,
+                parkedAt: new Date().toISOString(),
+              },
+            },
+          });
+        })
+        .catch((error: unknown) => {
+          setMoveError(getParkErrorMessage(error));
+        })
+        .finally(() => {
+          setIsSubmittingPark(false);
+          setPendingParkGarageId(null);
+        });
+    },
+    [selectedUnitId, selectedUnit, planetId, isSubmittingPark, patchUnit],
+  );
+
+  const handleUnpark = useCallback(
+    (vehicleUnitId: string) => {
+      if (selectedUnit == null || planetId == null || isSubmittingUnpark) {
+        return;
+      }
+
+      const vehicle = displayUnits.find((unit) => unit.id === vehicleUnitId);
+      if (vehicle == null) {
+        return;
+      }
+
+      setMoveError(null);
+      setPendingUnparkVehicleId(vehicleUnitId);
+      setIsSubmittingUnpark(true);
+
+      void unitService
+        .unparkUnit(vehicleUnitId, { planetId })
+        .then(() => {
+          const { parking: _parking, ...restMetadata } = vehicle.metadata;
+          patchUnit({
+            unitId: vehicleUnitId,
+            status: 'idle',
+            location: vehicle.location,
+            metadata: restMetadata,
+          });
+          handleGaragePanelClose();
+        })
+        .catch((error: unknown) => {
+          setMoveError(getUnparkErrorMessage(error));
+        })
+        .finally(() => {
+          setIsSubmittingUnpark(false);
+          setPendingUnparkVehicleId(null);
+        });
+    },
+    [selectedUnit, planetId, isSubmittingUnpark, displayUnits, patchUnit, handleGaragePanelClose],
+  );
+
+  const handleTransferCargo = useCallback(
+    ({
+      sourceUnitId,
+      targetUnitId,
+      resource,
+    }: {
+      sourceUnitId: string;
+      targetUnitId: string;
+      resource: CargoResource;
+    }) => {
+      if (planetId == null || pendingTransferResourceId != null) {
+        return;
+      }
+
+      const sourceUnit = displayUnits.find((unit) => unit.id === sourceUnitId);
+      const targetUnit = displayUnits.find((unit) => unit.id === targetUnitId);
+
+      if (sourceUnit == null || targetUnit == null) {
+        return;
+      }
+
+      setMoveError(null);
+      setPendingTransferResourceId(resource.id);
+
+      void unitService
+        .transferCargo(sourceUnitId, {
+          planetId,
+          targetUnitId,
+          resources: [resource],
+        })
+        .then((result) => {
+          const sourceCargo = { ...sourceUnit.cargo };
+          const targetCargo = { ...targetUnit.cargo };
+
+          for (const transferred of result.transferred) {
+            const remaining = (sourceCargo[transferred.id] ?? 0) - transferred.quantity;
+
+            if (remaining <= 0) {
+              delete sourceCargo[transferred.id];
+            } else {
+              sourceCargo[transferred.id] = remaining;
+            }
+
+            targetCargo[transferred.id] = (targetCargo[transferred.id] ?? 0) + transferred.quantity;
+          }
+
+          patchUnit({
+            unitId: sourceUnitId,
+            status: sourceUnit.status,
+            location: sourceUnit.location,
+            cargo: sourceCargo,
+          });
+          patchUnit({
+            unitId: targetUnitId,
+            status: targetUnit.status,
+            location: targetUnit.location,
+            cargo: targetCargo,
+          });
+        })
+        .catch((error: unknown) => {
+          setMoveError(getTransferCargoErrorMessage(error));
+        })
+        .finally(() => {
+          setPendingTransferResourceId(null);
+        });
+    },
+    [planetId, pendingTransferResourceId, displayUnits, patchUnit],
+  );
 
   const handleMoveDestinationSelect = useCallback(
     (hex_coords: HexCoords, position: Vec2Local) => {
@@ -436,6 +763,44 @@ export function PlanetHexPage() {
       selectedUnit.type.environments,
     );
   }, [selectedUnit, coords, planetRadius, hex, neighbors]);
+
+  const parkTargets = useMemo(() => {
+    if (selectedUnit == null || playerId == null || planetRadius == null) {
+      return [];
+    }
+
+    return findParkableGarages(selectedUnit, displayUnits, planetRadius, playerId).map(
+      (garage) => ({
+        garageUnitId: garage.unitId,
+        garageName: garage.name,
+      }),
+    );
+  }, [selectedUnit, displayUnits, planetRadius, playerId]);
+
+  const garageAreaPreview = useMemo(() => {
+    if ((!garageAreaHovered && !garagePanelOpen) || selectedUnit == null || coords == null) {
+      return null;
+    }
+
+    if (selectedUnit.type.capabilities.garage == null) {
+      return null;
+    }
+
+    const unitHex = getUnitHexCoords(selectedUnit);
+    if (unitHex == null || unitHex.q !== coords.q || unitHex.r !== coords.r) {
+      return null;
+    }
+
+    const center = getUnitHexLocalPosition(selectedUnit);
+    if (center == null) {
+      return null;
+    }
+
+    return {
+      center,
+      radiusHex: PLANET_GARAGE_RANGE_HEX,
+    };
+  }, [garageAreaHovered, garagePanelOpen, selectedUnit, coords]);
 
   const handleNeighborClick = useCallback(
     (neighborCoords: HexCoords) => {
@@ -507,13 +872,21 @@ export function PlanetHexPage() {
               pendingMoveDestination={pendingMoveDestination}
               movementTracks={movementTracks}
               onMoveDestinationSelect={handleMoveDestinationSelect}
+              buildModeActive={buildModeUnit != null}
+              buildFootprintCells={
+                buildModeUnit != null ? getBuildFootprintCells(buildModeUnit.size) : 1
+              }
+              pendingBuildPosition={pendingBuildPosition}
+              onBuildTargetSelect={handleBuildTargetSelect}
+              garageAreaPreview={garageAreaPreview}
             />
             <UnitPanel
-              unit={selectedUnit}
+              unit={selectedUnitForDisplay}
               moveModeActive={moveModeActive}
               cargoPanelOpen={cargoPanelOpen}
               extractPanelOpen={extractPanelOpen}
               buildingPanelOpen={buildingPanelOpen}
+              garagePanelOpen={garagePanelOpen}
               moveError={moveError}
               moveDisabled={isSubmittingMove || selectedUnit?.status === 'moving'}
               extractDisabled={
@@ -523,18 +896,25 @@ export function PlanetHexPage() {
               }
               buildingDisabled={
                 selectedUnit?.status === 'moving' ||
-                selectedUnit?.status === 'extracting'
+                selectedUnit?.status === 'extracting' ||
+                selectedUnit?.status === 'building'
               }
               stopDisabled={isSubmittingStop}
               onMoveClick={handleMoveClick}
               onCargoClick={handleCargoClick}
               onExtractClick={handleExtractClick}
               onBuildingClick={handleBuildingClick}
+              onGarageClick={handleGarageClick}
               onStopClick={handleStopClick}
+              onGarageHoverChange={setGarageAreaHovered}
+              parkTargets={parkTargets}
+              parkDisabled={isSubmittingPark || selectedUnit?.status !== 'idle'}
+              pendingParkGarageId={pendingParkGarageId}
+              onParkClick={handleParkClick}
             />
-            {cargoPanelOpen && selectedUnit != null ? (
+            {cargoPanelOpen && selectedUnitForDisplay != null ? (
               <UnitCargoOverlay
-                unit={selectedUnit}
+                unit={selectedUnitForDisplay}
                 onClose={handleCargoOverlayClose}
                 onDrop={handleDropCargo}
                 droppingResourceId={pendingDropResourceId}
@@ -556,6 +936,20 @@ export function PlanetHexPage() {
                 planetId={planetId ?? null}
                 hexCoords={coords}
                 onClose={handleBuildingPanelClose}
+                onBuild={handleBuildUnit}
+                isBuildable={isUnitBuildable}
+              />
+            ) : null}
+            {garagePanelOpen && selectedUnit != null ? (
+              <UnitGarageOverlay
+                unit={selectedUnit}
+                planetUnits={displayUnits}
+                onClose={handleGaragePanelClose}
+                onUnpark={handleUnpark}
+                unparkingVehicleId={pendingUnparkVehicleId}
+                onTransferCargo={handleTransferCargo}
+                transferringResourceId={pendingTransferResourceId}
+                transferError={moveError}
               />
             ) : null}
             <aside style={metaStyle}>

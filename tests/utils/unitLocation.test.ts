@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { UnitInstance } from '../../src/types/unit';
 import { getUnitHexCoords, getUnitHexLocalPosition, applyUnitUpdate, getUnitsSourceSignature, groupUnitsByHex } from '@utils/unitLocation';
+import { parseUnitExtractionMetadata } from '@utils/unitExtraction';
 
 const baseUnit = (overrides: Partial<UnitInstance> = {}): UnitInstance => ({
   id: 'unit-1',
@@ -20,6 +21,7 @@ const baseUnit = (overrides: Partial<UnitInstance> = {}): UnitInstance => ({
   updatedAt: '2026-01-01T00:00:00.000Z',
   metadata: {},
   cargo: {},
+  garage: {},
   type: {
     id: 'scout-x1',
     name: 'Scout-X1',
@@ -120,6 +122,53 @@ describe('unitLocation', () => {
     expect(result[0].status).toBe('extracting');
   });
 
+  it('merges metadata from UNIT_UPDATE when present', () => {
+    const units = [baseUnit()];
+
+    const result = applyUnitUpdate(units, {
+      unitId: 'unit-1',
+      status: 'extracting',
+      location: units[0].location,
+      metadata: {
+        extraction: {
+          resourceType: 'wood',
+          planetId: 'planet-1',
+          hexCoords: { q: 2, r: 3 },
+          startedAt: '2026-01-01T00:00:00.000Z',
+          lastTickAt: '2026-01-01T00:00:00.000Z',
+        },
+      },
+    });
+
+    expect(parseUnitExtractionMetadata(result[0].metadata)?.resourceType).toBe('wood');
+  });
+
+  it('clears extraction metadata when status becomes idle', () => {
+    const units = [
+      baseUnit({
+        status: 'extracting',
+        metadata: {
+          extraction: {
+            resourceType: 'wood',
+            planetId: 'planet-1',
+            hexCoords: { q: 2, r: 3 },
+            startedAt: '2026-01-01T00:00:00.000Z',
+            lastTickAt: '2026-01-01T00:00:00.000Z',
+          },
+        },
+      }),
+    ];
+
+    const result = applyUnitUpdate(units, {
+      unitId: 'unit-1',
+      status: 'idle',
+      location: units[0].location,
+      cargo: { wood: 4 },
+    });
+
+    expect(result[0].metadata).toEqual({});
+  });
+
   it('preserves existing cargo when UNIT_UPDATE omits cargo', () => {
     const units = [baseUnit({ cargo: { iron: 2 } })];
 
@@ -153,7 +202,7 @@ describe('unitLocation', () => {
     expect(getUnitsSourceSignature([...units])).toBe(getUnitsSourceSignature(units));
   });
 
-  it('groups active units by hex and skips destroyed units', () => {
+  it('groups active units by hex and skips destroyed and parked vehicles', () => {
     const grouped = groupUnitsByHex([
       baseUnit({ id: 'unit-1' }),
       baseUnit({
@@ -181,9 +230,34 @@ describe('unitLocation', () => {
           },
         },
       }),
+      baseUnit({
+        id: 'unit-4',
+        status: 'inactive',
+        metadata: {
+          parking: {
+            garageUnitId: 'sawmill-1',
+            parkedAt: '2026-01-01T00:00:00.000Z',
+          },
+        },
+      }),
     ]);
 
     expect(grouped.get('2,3')).toHaveLength(2);
     expect(grouped.has('4,1')).toBe(false);
+  });
+
+  it('merges garage updates from socket payloads', () => {
+    const garagePayload = {
+      'scout-parked': { id: 'scout-parked', typeId: 'scout-x1' },
+    };
+
+    expect(
+      applyUnitUpdate([baseUnit({ garage: {} })], {
+        unitId: 'unit-1',
+        status: 'active',
+        location: baseUnit().location,
+        garage: garagePayload,
+      }),
+    ).toEqual([baseUnit({ garage: garagePayload })]);
   });
 });

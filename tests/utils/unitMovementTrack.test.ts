@@ -34,6 +34,7 @@ const baseUnit = (overrides: Partial<UnitInstance> = {}): UnitInstance => ({
     },
   },
   cargo: {},
+  garage: {},
   type: {
     id: 'scout-x1',
     name: 'Scout-X1',

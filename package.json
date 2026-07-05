@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@infinity/shared-config": "^0.1.0",
+    "@infinity/shared-types": "^0.1.0",
     "@infinity/shared-utils": "^0.1.0",
     "@infinity/shared-ui": "^0.1.0",
     "axios": "^1.6.2",

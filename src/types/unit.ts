@@ -1,28 +1,26 @@
-import type { HexCoords, Location, Vec2Local } from './player';
 import type { UnitInstanceStatus } from '@infinity/shared-config';
 
 export { UNIT_INSTANCE_STATUSES } from '@infinity/shared-config';
-export type { UnitInstanceStatus };
+export type { UnitCategory, UnitInstanceStatus, UnitSize } from '@infinity/shared-config';
+export type { UnitCargo } from '@infinity/shared-utils';
+export type {
+  BuildableUnitType,
+  CargoResource,
+  UnitRecipe,
+  UnitTypeDefinition,
+} from '@infinity/shared-types';
 
-export type UnitCategory = 'vehicule' | 'building';
-export type UnitSize = 'small' | 'medium' | 'large';
+import type { HexCoords, Location, Vec2Local } from './player';
+import type { UnitCargo, UnitGarage } from '@infinity/shared-utils';
+import type { CargoResource, UnitTypeDefinition } from '@infinity/shared-types';
 
-export type UnitCargo = Record<string, number>;
-
-export interface UnitRecipe {
-  ingredients: Record<string, number>;
-  work: number;
-}
+/** Alias kept for existing terra-view imports; same shape as {@link UnitTypeDefinition}. */
+export type UnitType = UnitTypeDefinition;
 
 export interface ListBuildableUnitsQuery {
   planetId?: string;
   q?: number;
   r?: number;
-}
-
-export interface BuildableUnitType extends UnitType {
-  recipe?: UnitRecipe;
-  buildDurationMs: number;
 }
 
 export interface MoveUnitRequest {
@@ -75,15 +73,61 @@ export interface StopExtractionOrderResult {
 
 export interface DropCargoRequest {
   planetId: string;
-  resourceType: string;
-  amount: number;
+  resource: CargoResource;
 }
 
 export interface DropCargoOrderResult {
   unitId: string;
   status: 'idle';
-  resourceType: string;
-  droppedAmount: number;
+  resource: CargoResource;
+}
+
+export interface BuildUnitRequest {
+  planetId: string;
+  targetTypeId: string;
+  targetHex: HexCoords;
+  targetPosition?: Vec2Local;
+}
+
+export interface BuildOrderResult {
+  unitId: string;
+  status: 'building';
+  targetTypeId: string;
+  startedAt: string;
+  completedAt: string;
+}
+
+export interface StopBuildOrderResult {
+  unitId: string;
+  status: 'idle';
+}
+
+export interface ParkUnitRequest {
+  planetId: string;
+  garageUnitId: string;
+}
+
+export interface ParkOrderResult {
+  unitId: string;
+  status: 'inactive';
+  garageUnitId: string;
+}
+
+export interface UnparkOrderResult {
+  unitId: string;
+  status: 'idle';
+}
+
+export interface TransferCargoRequest {
+  planetId: string;
+  targetUnitId: string;
+  resources: CargoResource[];
+}
+
+export interface TransferCargoOrderResult {
+  sourceUnitId: string;
+  targetUnitId: string;
+  transferred: CargoResource[];
 }
 
 /** Server-persisted movement state (`unit.metadata.movement`). */
@@ -102,20 +146,6 @@ export interface UnitMovementTrack {
   destination: MoveSurfacePoint;
 }
 
-export interface UnitType {
-  id: string;
-  name: string;
-  type: UnitCategory;
-  size: UnitSize;
-  mobility: boolean;
-  speed: number | null;
-  environments: string[];
-  rules: Array<{ range: 'hexagon'; value: number }>;
-  capabilities: Record<string, unknown>;
-  description: string | null;
-  metadata: Record<string, unknown>;
-}
-
 export interface UnitInstance {
   id: string;
   typeId: string;
@@ -126,5 +156,6 @@ export interface UnitInstance {
   updatedAt: string;
   metadata: Record<string, unknown>;
   cargo: UnitCargo;
-  type: UnitType;
+  garage: UnitGarage;
+  type: UnitTypeDefinition;
 }

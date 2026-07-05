@@ -1,5 +1,6 @@
 import { PLANET_EVENTS, UNIT_EVENTS } from '@infinity/shared-config';
 import type { Location } from './player';
+import type { UnitGarage } from '@infinity/shared-utils';
 import type { UnitCargo, UnitInstanceStatus } from './unit';
 
 export const SOCKET_EVENTS = {
@@ -15,6 +16,10 @@ export interface UnitUpdatePayload {
   location: Location;
   /** Present on extraction tick/stop events. */
   cargo?: UnitCargo;
+  /** Client-side merge when starting extraction locally. */
+  metadata?: Record<string, unknown>;
+  /** Present when vehicles are parked in or removed from a garage building. */
+  garage?: UnitGarage;
 }
 
 export interface PlanetUpdatePayload {

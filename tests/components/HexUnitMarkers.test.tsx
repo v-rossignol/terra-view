@@ -21,6 +21,7 @@ const unit: UnitInstance = {
   updatedAt: '2026-01-01T00:00:00.000Z',
   metadata: {},
   cargo: {},
+  garage: {},
   type: {
     id: 'scout-x1',
     name: 'Scout-X1',
@@ -142,5 +143,18 @@ describe('HexUnitMarkers', () => {
     );
 
     expect(container.querySelector('.hex-grid__unit--moving')).not.toBeInTheDocument();
+  });
+
+  it('renders a dark blue selection ring for a vehicule under construction', () => {
+    const { container } = render(
+      <HexUnitMarkers
+        units={[{ ...unit, status: 'building' }]}
+        playerId="player-1"
+        ownUnitMarker="sprite"
+      />,
+    );
+
+    expect(container.querySelector('.hex-grid__unit--constructing')).toBeInTheDocument();
+    expect(container.querySelector('.hex-grid__unit--sprite')).toBeInTheDocument();
   });
 });

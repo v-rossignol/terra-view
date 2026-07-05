@@ -11,6 +11,14 @@ import type {
   StopOrderResult,
   StopUnitRequest,
   UnitInstance,
+  BuildUnitRequest,
+  BuildOrderResult,
+  ParkUnitRequest,
+  ParkOrderResult,
+  UnparkOrderResult,
+  StopBuildOrderResult,
+  TransferCargoRequest,
+  TransferCargoOrderResult,
 } from '../types/unit';
 import { api, dedupedGet } from './api';
 
@@ -67,5 +75,48 @@ export const unitService = {
       `/players/me/units/${encodeURIComponent(unitId)}/buildable`,
       { params: query },
     );
+  },
+
+  async startBuild(unitId: string, request: BuildUnitRequest): Promise<BuildOrderResult> {
+    const response = await api.post<BuildOrderResult>(
+      `/players/me/units/${encodeURIComponent(unitId)}/build`,
+      request,
+    );
+    return response.data;
+  },
+
+  async stopBuild(unitId: string, request: StopUnitRequest): Promise<StopBuildOrderResult> {
+    const response = await api.post<StopBuildOrderResult>(
+      `/players/me/units/${encodeURIComponent(unitId)}/stop-build`,
+      request,
+    );
+    return response.data;
+  },
+
+  async parkUnit(unitId: string, request: ParkUnitRequest): Promise<ParkOrderResult> {
+    const response = await api.post<ParkOrderResult>(
+      `/players/me/units/${encodeURIComponent(unitId)}/park`,
+      request,
+    );
+    return response.data;
+  },
+
+  async unparkUnit(unitId: string, request: StopUnitRequest): Promise<UnparkOrderResult> {
+    const response = await api.post<UnparkOrderResult>(
+      `/players/me/units/${encodeURIComponent(unitId)}/unpark`,
+      request,
+    );
+    return response.data;
+  },
+
+  async transferCargo(
+    sourceUnitId: string,
+    request: TransferCargoRequest,
+  ): Promise<TransferCargoOrderResult> {
+    const response = await api.post<TransferCargoOrderResult>(
+      `/players/me/units/${encodeURIComponent(sourceUnitId)}/transfer-to`,
+      request,
+    );
+    return response.data;
   },
 };

@@ -1,8 +1,12 @@
+import { UNIT_SIZES } from '@infinity/shared-config';
 import { CargoGauge } from '@infinity/shared-ui';
+import { getCargoUsed } from '@infinity/shared-utils';
+import type { UnitBuildTarget, UnitCapabilities } from '@infinity/shared-types';
 import buildingIcon from '../../assets/icons/building.avif';
 import extractionIcon from '../../assets/icons/extraction.avif';
+import garageIcon from '../../assets/icons/garage.avif';
 import moveIcon from '../../assets/icons/move.avif';
-import type { UnitCargo, UnitInstance, UnitInstanceStatus } from '../../types/unit';
+import type { UnitInstance, UnitInstanceStatus } from '../../types/unit';
 
 const panelStyle: React.CSSProperties = {
   position: 'absolute',
@@ -145,6 +149,10 @@ function getStatusColor(status: UnitInstanceStatus): string {
     return '#6bcf7f';
   }
 
+  if (status === 'building') {
+    return '#4f8ef7';
+  }
+
   return '#e0e0e0';
 }
 
@@ -156,50 +164,42 @@ function formatSpeed(speed: number | null, mobility: boolean): string {
   return String(speed);
 }
 
-function formatBuildTargetCategory(category: string, target: unknown): string | null {
-  if (target == null || typeof target !== 'object') {
+function formatBuildTargetCategory(category: string, target: UnitBuildTarget | undefined): string | null {
+  if (target == null) {
     return null;
   }
 
-  if (!('sizes' in target && Array.isArray(target.sizes) && 'units' in target && Array.isArray(target.units))) {
-    return null;
-  }
-
-  const sizes = target.sizes.map(String).join(', ');
-  const units = target.units.map(String).join(', ');
+  const sizes = target.sizes.join(', ');
+  const units = target.units.join(', ');
   return `${category} sizes ${sizes}, units ${units}`;
 }
 
-function formatCapability(key: string, value: unknown): string | null {
-  if (value == null || typeof value !== 'object') {
-    return null;
-  }
-
+function formatCapability(key: string, capabilities: UnitCapabilities): string | null {
   if (key === 'cargo') {
     return null;
   }
 
-  if (
-    key === 'extraction' &&
-    'speed' in value &&
-    typeof value.speed === 'number' &&
-    'types' in value &&
-    Array.isArray(value.types)
-  ) {
-    const types = value.types.map(String).join(', ');
-    return `Extraction: speed ${value.speed}, types ${types}`;
+  if (key === 'extraction') {
+    const extraction = capabilities.extraction;
+
+    if (extraction == null) {
+      return null;
+    }
+
+    const types = extraction.types.join(', ');
+    return `Extraction: speed ${extraction.speed}, types ${types}`;
   }
 
-  if (key === 'building' && 'speed' in value && typeof value.speed === 'number') {
-    const parts = [`speed ${value.speed}`];
-    const vehicules = formatBuildTargetCategory(
-      'vehicules',
-      'vehicules' in value ? value.vehicules : null,
-    );
-    const buildings = formatBuildTargetCategory(
-      'buildings',
-      'buildings' in value ? value.buildings : null,
-    );
+  if (key === 'building') {
+    const building = capabilities.building;
+
+    if (building == null) {
+      return null;
+    }
+
+    const parts = [`speed ${building.speed}`];
+    const vehicules = formatBuildTargetCategory('vehicules', building.vehicules);
+    const buildings = formatBuildTargetCategory('buildings', building.buildings);
 
     if (vehicules != null) {
       parts.push(vehicules);
@@ -212,21 +212,29 @@ function formatCapability(key: string, value: unknown): string | null {
     return `Building: ${parts.join('; ')}`;
   }
 
-  return null;
-}
+  if (key === 'garage') {
+    const garage = capabilities.garage;
 
-function getCargoCapacity(capabilities: Record<string, unknown>): number | null {
-  const cargo = capabilities.cargo;
+    if (garage == null) {
+      return null;
+    }
 
-  if (cargo != null && typeof cargo === 'object' && 'size' in cargo && typeof cargo.size === 'number') {
-    return cargo.size;
+    const slots = UNIT_SIZES.filter((size) => garage[size] > 0)
+      .map((size) => `${garage[size]} ${size}`)
+      .join(', ');
+
+    if (slots.length === 0) {
+      return null;
+    }
+
+    return `Garage: ${slots}`;
   }
 
   return null;
 }
 
-function getUsedCargoSize(cargo: UnitCargo): number {
-  return Object.values(cargo).reduce((sum, quantity) => (quantity > 0 ? sum + quantity : sum), 0);
+function getCargoCapacity(capabilities: UnitCapabilities): number | null {
+  return capabilities.cargo?.size ?? null;
 }
 
 interface CapabilityEntry {
@@ -235,7 +243,7 @@ interface CapabilityEntry {
   iconSrc?: string;
 }
 
-const CAPABILITY_ICON_ORDER = ['building', 'extraction'] as const;
+const CAPABILITY_ICON_ORDER = ['building', 'extraction', 'garage'] as const;
 
 function getCapabilityIconSrc(key: string): string | undefined {
   if (key === 'building') {
@@ -246,36 +254,18 @@ function getCapabilityIconSrc(key: string): string | undefined {
     return extractionIcon;
   }
 
+  if (key === 'garage') {
+    return garageIcon;
+  }
+
   return undefined;
 }
 
-function getCapabilityEntries(capabilities: Record<string, unknown>): CapabilityEntry[] {
+function getCapabilityEntries(capabilities: UnitCapabilities): CapabilityEntry[] {
   const entries: CapabilityEntry[] = [];
 
   for (const key of CAPABILITY_ICON_ORDER) {
-    if (!(key in capabilities)) {
-      continue;
-    }
-
-    const text = formatCapability(key, capabilities[key]);
-
-    if (text == null) {
-      continue;
-    }
-
-    entries.push({
-      id: key,
-      text,
-      iconSrc: getCapabilityIconSrc(key),
-    });
-  }
-
-  for (const [key, value] of Object.entries(capabilities)) {
-    if ((CAPABILITY_ICON_ORDER as readonly string[]).includes(key)) {
-      continue;
-    }
-
-    const text = formatCapability(key, value);
+    const text = formatCapability(key, capabilities);
 
     if (text == null) {
       continue;
@@ -322,12 +312,23 @@ const moveErrorStyle: React.CSSProperties = {
   lineHeight: 1.35,
 };
 
+const parkActionRowStyle: React.CSSProperties = {
+  ...itemStyle,
+  marginTop: '0.25rem',
+};
+
+export interface UnitPanelParkTarget {
+  garageUnitId: string;
+  garageName: string;
+}
+
 export interface UnitPanelProps {
   unit: UnitInstance | null;
   moveModeActive?: boolean;
   cargoPanelOpen?: boolean;
   extractPanelOpen?: boolean;
   buildingPanelOpen?: boolean;
+  garagePanelOpen?: boolean;
   moveError?: string | null;
   moveDisabled?: boolean;
   extractDisabled?: boolean;
@@ -337,7 +338,13 @@ export interface UnitPanelProps {
   onCargoClick?: () => void;
   onExtractClick?: () => void;
   onBuildingClick?: () => void;
+  onGarageClick?: () => void;
   onStopClick?: () => void;
+  onGarageHoverChange?: (hovered: boolean) => void;
+  parkTargets?: ReadonlyArray<UnitPanelParkTarget>;
+  parkDisabled?: boolean;
+  pendingParkGarageId?: string | null;
+  onParkClick?: (garageUnitId: string) => void;
 }
 
 export function UnitPanel({
@@ -346,6 +353,7 @@ export function UnitPanel({
   cargoPanelOpen = false,
   extractPanelOpen = false,
   buildingPanelOpen = false,
+  garagePanelOpen = false,
   moveError = null,
   moveDisabled = false,
   extractDisabled = false,
@@ -355,7 +363,13 @@ export function UnitPanel({
   onCargoClick,
   onExtractClick,
   onBuildingClick,
+  onGarageClick,
   onStopClick,
+  onGarageHoverChange,
+  parkTargets = [],
+  parkDisabled = false,
+  pendingParkGarageId = null,
+  onParkClick,
 }: UnitPanelProps) {
   if (unit == null) {
     return null;
@@ -367,9 +381,12 @@ export function UnitPanel({
   const cargoCapacity = getCargoCapacity(unit.type.capabilities);
   const showMoveTo = unit.type.mobility;
   const showIconRow = iconCapabilityEntries.length > 0 || showMoveTo;
-  const hasCapabilityContent = showIconRow || textCapabilityEntries.length > 0;
+  const hasParkTargets = parkTargets.length > 0;
+  const hasCapabilityContent = showIconRow || textCapabilityEntries.length > 0 || hasParkTargets;
   const showStop =
-    (unit.status === 'moving' && unit.type.type === 'vehicule') || unit.status === 'extracting';
+    (unit.status === 'moving' && unit.type.type === 'vehicule') ||
+    unit.status === 'extracting' ||
+    unit.status === 'building';
 
   return (
     <aside style={panelStyle} aria-label="Unit panel">
@@ -389,15 +406,17 @@ export function UnitPanel({
           </button>
         ) : null}
       </p>
-      <p style={metaStyle}>
-        Speed: <strong style={{ color: '#e0e0e0' }}>{formatSpeed(unit.type.speed, unit.type.mobility)}</strong>
-      </p>
+      {unit.type.type !== 'building' ? (
+        <p style={metaStyle}>
+          Speed: <strong style={{ color: '#e0e0e0' }}>{formatSpeed(unit.type.speed, unit.type.mobility)}</strong>
+        </p>
+      ) : null}
       {cargoCapacity != null ? (
         <div style={cargoRowStyle}>
           <div style={cargoGaugeWrapStyle}>
             <CargoGauge
               capacity={cargoCapacity}
-              used={getUsedCargoSize(unit.cargo)}
+              used={getCargoUsed(unit.cargo)}
               style={{ marginBottom: 0 }}
             />
           </div>
@@ -473,6 +492,30 @@ export function UnitPanel({
                   );
                 }
 
+                if (entry.id === 'garage') {
+                  return (
+                    <button
+                      key={entry.id}
+                      type="button"
+                      aria-label={entry.text}
+                      title={entry.text}
+                      aria-pressed={garagePanelOpen}
+                      style={
+                        garagePanelOpen
+                          ? { ...capabilityIconButtonStyle, ...actionButtonActiveStyle }
+                          : capabilityIconButtonStyle
+                      }
+                      onClick={onGarageClick}
+                      onMouseEnter={() => onGarageHoverChange?.(true)}
+                      onMouseLeave={() => onGarageHoverChange?.(false)}
+                      onFocus={() => onGarageHoverChange?.(true)}
+                      onBlur={() => onGarageHoverChange?.(false)}
+                    >
+                      {icon}
+                    </button>
+                  );
+                }
+
                 return (
                   <span
                     key={entry.id}
@@ -505,6 +548,22 @@ export function UnitPanel({
               ) : null}
             </li>
           ) : null}
+          {parkTargets.map((target) => (
+            <li key={target.garageUnitId} style={parkActionRowStyle}>
+              <button
+                type="button"
+                disabled={parkDisabled || pendingParkGarageId === target.garageUnitId}
+                style={
+                  parkDisabled || pendingParkGarageId === target.garageUnitId
+                    ? { ...actionButtonStyle, ...actionButtonDisabledStyle }
+                    : actionButtonStyle
+                }
+                onClick={() => onParkClick?.(target.garageUnitId)}
+              >
+                Park in {target.garageName}
+              </button>
+            </li>
+          ))}
           {textCapabilityEntries.map((entry) => (
             <li key={entry.id} style={itemStyle}>
               {entry.text}

@@ -21,6 +21,7 @@ const unit: UnitInstance = {
   updatedAt: '2026-01-01T00:00:00.000Z',
   metadata: {},
   cargo: { wood: 50, 'iron-ore': 10 },
+  garage: {},
   type: {
     id: 'scout-x1',
     name: 'Scout X1',

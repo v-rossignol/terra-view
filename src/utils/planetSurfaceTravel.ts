@@ -2,7 +2,18 @@ import type { HexCoords } from '../types/planet';
 import type { Vec2Local } from '../types/player';
 import type { MoveSurfacePoint } from '../types/unit';
 import { isHexLocalPointInside } from './hexLocalPosition';
-import { axialToScreen, DEFAULT_HEX_LAYOUT, hexVerticalStep, type HexLayoutConfig } from './hexLayout';
+import {
+  axialToScreen,
+  DEFAULT_HEX_LAYOUT,
+  getMaxIntraHexDistance,
+  hexVerticalStep,
+  type HexLayoutConfig,
+} from './hexLayout';
+
+export interface PlanetSurfacePoint {
+  hex: HexCoords;
+  position: Vec2Local;
+}
 
 export function getToroidalSurfaceOffset(
   fromWorld: Vec2Local,
@@ -119,6 +130,24 @@ export function worldPointToClusterScreen(
     x: clusterTopLeft.x + offset.x,
     y: clusterTopLeft.y + offset.y,
   };
+}
+
+/** Returns travel distance in hex units (1 = largest distance within a single hex). */
+export function computePlanetSurfaceTravelDistance(
+  from: PlanetSurfacePoint,
+  to: PlanetSurfacePoint,
+  radius?: number,
+  config: HexLayoutConfig = DEFAULT_HEX_LAYOUT,
+): number {
+  const fromWorld = planetSurfaceToWorldPoint(from.hex, from.position, config);
+  const toWorld = planetSurfaceToWorldPoint(to.hex, to.position, config);
+  const offset =
+    radius != null && radius > 0
+      ? getToroidalSurfaceOffset(fromWorld, toWorld, radius, config)
+      : { x: toWorld.x - fromWorld.x, y: toWorld.y - fromWorld.y };
+  const worldDistance = Math.hypot(offset.x, offset.y);
+
+  return worldDistance / getMaxIntraHexDistance(config);
 }
 
 function hexLocalFromWorldOffset(

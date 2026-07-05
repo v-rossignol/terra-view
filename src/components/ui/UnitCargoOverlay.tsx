@@ -56,18 +56,7 @@ export interface UnitCargoOverlayProps {
 }
 
 function getUnitCargoCapacity(unit: UnitInstance): number | undefined {
-  const cargoCapability = unit.type.capabilities.cargo;
-
-  if (
-    cargoCapability != null &&
-    typeof cargoCapability === 'object' &&
-    'size' in cargoCapability &&
-    typeof cargoCapability.size === 'number'
-  ) {
-    return cargoCapability.size;
-  }
-
-  return undefined;
+  return unit.type.capabilities.cargo?.size;
 }
 
 export function UnitCargoOverlay({ unit, onClose, onDrop, droppingResourceId = null }: UnitCargoOverlayProps) {

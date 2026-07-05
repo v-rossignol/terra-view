@@ -21,6 +21,7 @@ const unit: UnitInstance = {
   updatedAt: '2026-01-01T00:00:00.000Z',
   metadata: {},
   cargo: {},
+  garage: {},
   type: {
     id: 'scout-x1',
     name: 'Scout X1',
@@ -295,5 +296,31 @@ describe('UnitPanel', () => {
 
     fireEvent.click(extractionButton);
     expect(onExtractClick).toHaveBeenCalledTimes(1);
+  });
+
+  it('calls onGarageClick and reflects garage panel open state', () => {
+    const onGarageClick = vi.fn();
+    const garageUnit: UnitInstance = {
+      ...unit,
+      type: {
+        ...unit.type,
+        type: 'building',
+        mobility: false,
+        speed: null,
+        capabilities: {
+          garage: { small: 1, medium: 0, large: 0 },
+        },
+      },
+    };
+
+    render(
+      <UnitPanel unit={garageUnit} garagePanelOpen onGarageClick={onGarageClick} />,
+    );
+
+    const garageButton = screen.getByRole('button', { name: 'Garage: 1 small' });
+    expect(garageButton).toHaveAttribute('aria-pressed', 'true');
+
+    fireEvent.click(garageButton);
+    expect(onGarageClick).toHaveBeenCalledTimes(1);
   });
 });

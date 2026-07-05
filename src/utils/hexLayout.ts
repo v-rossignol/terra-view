@@ -1,4 +1,4 @@
-import { PLANET_HEX_LAYOUT_WIDTH, PLANET_HEX_LAYOUT_HEIGHT } from '@infinity/shared-config';
+import { PLANET_HEX_LAYOUT_WIDTH, PLANET_HEX_LAYOUT_HEIGHT, PLANET_HEX_VERTEX_FRACTIONS } from '@infinity/shared-config';
 
 export interface HexLayoutConfig {
   hexWidth: number;
@@ -24,6 +24,35 @@ export interface GridPixelSize {
 /** Vertical distance between hex row centers (algorithm.js: hexHeight * 0.75). */
 export function hexVerticalStep(hexHeight: number): number {
   return hexHeight * 0.75;
+}
+
+/** Longest vertex-to-vertex distance inside one hex (1.0 hex unit at speed calibration). */
+export function getMaxIntraHexDistance(
+  config: HexLayoutConfig = DEFAULT_HEX_LAYOUT,
+): number {
+  const vertices = PLANET_HEX_VERTEX_FRACTIONS.map((vertex) => ({
+    x: vertex.x * config.hexWidth,
+    y: vertex.y * config.hexHeight,
+  }));
+
+  let maxDistance = 0;
+  for (let i = 0; i < vertices.length; i += 1) {
+    for (let j = i + 1; j < vertices.length; j += 1) {
+      const dx = vertices[i].x - vertices[j].x;
+      const dy = vertices[i].y - vertices[j].y;
+      maxDistance = Math.max(maxDistance, Math.hypot(dx, dy));
+    }
+  }
+
+  return maxDistance;
+}
+
+/** Converts a hex-unit distance to screen pixels for the given layout. */
+export function hexDistanceToPixels(
+  distanceHex: number,
+  config: HexLayoutConfig = DEFAULT_HEX_LAYOUT,
+): number {
+  return distanceHex * getMaxIntraHexDistance(config);
 }
 
 /**

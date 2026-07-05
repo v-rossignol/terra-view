@@ -2,6 +2,7 @@ import { fireEvent, render } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { SingleHexView } from '@components/game/SingleHexView';
 import type { PlanetHexagon } from '../../src/types/planet';
+import type { UnitInstance } from '../../src/types/unit';
 
 vi.mock('@hooks/useContainerSize', () => ({
   useContainerSize: () => ({
@@ -22,6 +23,40 @@ const neighborHex: PlanetHexagon = {
   resources: [],
   dangerLevel: 1,
   coordinates: { q: 2, r: 4 },
+};
+
+const sawmillOnFocusHex: UnitInstance = {
+  id: 'sawmill-1',
+  typeId: 'sawmill',
+  ownerId: 'player-1',
+  location: {
+    cube: { id: 'cube-1' },
+    starSystem: { id: 'system-1' },
+    planet: {
+      id: 'planet-1',
+      hex_coords: { q: 2, r: 3 },
+      position: { x: 0.5, y: 0.5 },
+    },
+  },
+  status: 'idle',
+  createdAt: '2026-01-01T00:00:00.000Z',
+  updatedAt: '2026-01-01T00:00:00.000Z',
+  metadata: {},
+  cargo: {},
+  garage: {},
+  type: {
+    id: 'sawmill',
+    name: 'Sawmill',
+    type: 'building',
+    size: 'small',
+    mobility: false,
+    speed: null,
+    environments: ['forest'],
+    rules: [],
+    capabilities: {},
+    description: null,
+    metadata: {},
+  },
 };
 
 describe('SingleHexView move mode', () => {
@@ -53,6 +88,61 @@ describe('SingleHexView move mode', () => {
     });
 
     fireEvent.click(focusCell, { clientX: 200, clientY: 180 });
+
+    expect(onMoveDestinationSelect).toHaveBeenCalledWith(
+      { q: 2, r: 3 },
+      expect.objectContaining({ x: expect.any(Number), y: expect.any(Number) }),
+    );
+  });
+
+  it('does not select a move destination on a building footprint', () => {
+    const onMoveDestinationSelect = vi.fn();
+
+    const { container } = render(
+      <SingleHexView
+        hex={focusHex}
+        radius={10}
+        neighbors={[neighborHex]}
+        planetUnits={[sawmillOnFocusHex]}
+        moveModeActive
+        validMoveHexes={[{ q: 2, r: 3 }]}
+        onMoveDestinationSelect={onMoveDestinationSelect}
+      />,
+    );
+
+    const focusCell = container.querySelector('[data-q="2"][data-r="3"]') as HTMLElement;
+    Object.defineProperty(focusCell, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => new DOMRect(100, 100, 200, 160),
+    });
+
+    fireEvent.click(focusCell, { clientX: 200, clientY: 180 });
+
+    expect(onMoveDestinationSelect).not.toHaveBeenCalled();
+  });
+
+  it('selects a move destination outside a building footprint on the same hex', () => {
+    const onMoveDestinationSelect = vi.fn();
+
+    const { container } = render(
+      <SingleHexView
+        hex={focusHex}
+        radius={10}
+        neighbors={[neighborHex]}
+        planetUnits={[sawmillOnFocusHex]}
+        moveModeActive
+        validMoveHexes={[{ q: 2, r: 3 }]}
+        onMoveDestinationSelect={onMoveDestinationSelect}
+      />,
+    );
+
+    const focusCell = container.querySelector('[data-q="2"][data-r="3"]') as HTMLElement;
+    Object.defineProperty(focusCell, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => new DOMRect(100, 100, 200, 160),
+    });
+
+    fireEvent.click(focusCell, { clientX: 150, clientY: 180 });
 
     expect(onMoveDestinationSelect).toHaveBeenCalledWith(
       { q: 2, r: 3 },
@@ -117,5 +207,127 @@ describe('SingleHexView move mode', () => {
 
     expect(container.querySelector('.hex-grid-viewport--move-mode')).toBeInTheDocument();
     expect(container.querySelectorAll('.hex-grid__cell--move-target')).toHaveLength(1);
+  });
+
+  it('calls onBuildTargetSelect when clicking the focus hex in build mode', () => {
+    const onBuildTargetSelect = vi.fn();
+
+    const { container } = render(
+      <SingleHexView
+        hex={focusHex}
+        radius={10}
+        neighbors={[neighborHex]}
+        buildModeActive
+        buildFootprintCells={1}
+        onBuildTargetSelect={onBuildTargetSelect}
+      />,
+    );
+
+    const focusCell = container.querySelector('[data-q="2"][data-r="3"]') as HTMLElement;
+    const overlay = focusCell.querySelector('.hex-grid__build-overlay') as HTMLElement;
+    Object.defineProperty(overlay, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => new DOMRect(100, 100, 200, 160),
+    });
+
+    fireEvent.click(overlay, { clientX: 200, clientY: 180 });
+
+    expect(onBuildTargetSelect).toHaveBeenCalledWith(
+      expect.objectContaining({ x: expect.any(Number), y: expect.any(Number) }),
+    );
+  });
+
+  it('renders a garage area circle on the focus hex when preview is set', () => {
+    const { container } = render(
+      <SingleHexView
+        hex={focusHex}
+        radius={10}
+        neighbors={[neighborHex]}
+        garageAreaPreview={{
+          center: { x: 0.5, y: 0.5 },
+          radiusHex: 0.16,
+        }}
+      />,
+    );
+
+    const garageArea = container.querySelector('.hex-grid__garage-area');
+    expect(garageArea).toBeInTheDocument();
+    expect(garageArea?.parentElement).toHaveAttribute('data-q', '2');
+    expect(garageArea?.parentElement).toHaveAttribute('data-r', '3');
+  });
+
+  it('adds build mode classes to the viewport and focus cell', () => {
+    const { container } = render(
+      <SingleHexView
+        hex={focusHex}
+        radius={10}
+        neighbors={[neighborHex]}
+        buildModeActive
+        buildFootprintCells={2}
+      />,
+    );
+
+    expect(container.querySelector('.hex-grid-viewport--build-mode')).toBeInTheDocument();
+    expect(container.querySelector('.hex-grid__cell--build-target')).toBeInTheDocument();
+    expect(container.querySelector('.hex-grid__build-overlay')).toBeInTheDocument();
+  });
+
+  it('renders a construction site overlay on the target hex', () => {
+    const { container } = render(
+      <SingleHexView
+        hex={focusHex}
+        radius={10}
+        neighbors={[neighborHex]}
+        playerId="player-1"
+        planetUnits={[
+          {
+            id: 'builder-1',
+            typeId: 'scout-x1',
+            ownerId: 'player-1',
+            location: {
+              cube: { id: 'cube-1' },
+              starSystem: { id: 'system-1' },
+              planet: {
+                id: 'planet-1',
+                hex_coords: { q: 2, r: 4 },
+                position: { x: 0.2, y: 0.2 },
+              },
+            },
+            status: 'building',
+            createdAt: '2026-01-01T00:00:00.000Z',
+            updatedAt: '2026-01-01T00:00:00.000Z',
+            metadata: {
+              building: {
+                targetTypeId: 'sawmill',
+                planetId: 'planet-1',
+                hexCoords: { q: 2, r: 3 },
+                position: { x: 0.5, y: 0.5 },
+                startedAt: '2026-01-01T00:00:00.000Z',
+                completedAt: '2026-01-01T00:01:40.000Z',
+              },
+            },
+            cargo: {},
+            garage: {},
+            type: {
+              id: 'scout-x1',
+              name: 'Scout-X1',
+              type: 'vehicule',
+              size: 'small',
+              mobility: true,
+              speed: 1,
+              environments: ['forest'],
+              rules: [{ range: 'hexagon', value: 1 }],
+              capabilities: {},
+              description: null,
+              metadata: {},
+            },
+          },
+        ]}
+      />,
+    );
+
+    const focusCell = container.querySelector('[data-q="2"][data-r="3"]');
+    expect(focusCell?.querySelector('.hex-grid__construction-footprint')).toBeInTheDocument();
+    expect(focusCell?.querySelector('.hex-grid__construction-progress')).toHaveTextContent(/\d+%/);
   });
 });

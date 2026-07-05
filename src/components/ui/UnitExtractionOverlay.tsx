@@ -126,33 +126,11 @@ export interface UnitExtractionOverlayProps {
 }
 
 function getExtractionTypes(unit: UnitInstance): readonly string[] {
-  const extraction = unit.type.capabilities.extraction;
-
-  if (
-    extraction != null &&
-    typeof extraction === 'object' &&
-    'types' in extraction &&
-    Array.isArray(extraction.types)
-  ) {
-    return extraction.types.map(String);
-  }
-
-  return [];
+  return unit.type.capabilities.extraction?.types ?? [];
 }
 
 function getExtractionSpeed(unit: UnitInstance): number {
-  const extraction = unit.type.capabilities.extraction;
-
-  if (
-    extraction != null &&
-    typeof extraction === 'object' &&
-    'speed' in extraction &&
-    typeof extraction.speed === 'number'
-  ) {
-    return extraction.speed;
-  }
-
-  return 0;
+  return unit.type.capabilities.extraction?.speed ?? 0;
 }
 
 export function UnitExtractionOverlay({

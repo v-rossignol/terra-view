@@ -31,6 +31,7 @@ const unit: UnitInstance = {
   updatedAt: '2026-01-01T00:00:00.000Z',
   metadata: {},
   cargo: {},
+  garage: {},
   type: {
     id: 'scout-x1',
     name: 'Scout X1',
@@ -79,7 +80,7 @@ describe('BuildingPanel', () => {
     expect(container).toBeEmptyDOMElement();
   });
 
-  it('loads and lists buildable units from the server', async () => {
+  it('loads buildable units from the server and passes them to the panel', async () => {
     mockedListBuildableUnitTypes.mockResolvedValue([sawmill]);
 
     render(
@@ -97,8 +98,7 @@ describe('BuildingPanel', () => {
       q: 2,
       r: 3,
     });
-    expect(screen.getByText('1m 40s')).toBeInTheDocument();
-    expect(screen.getByText('(Building, small)')).toBeInTheDocument();
+    expect(screen.getByText('Scout X1 - Building')).toBeInTheDocument();
   });
 
   it('shows an empty state when no buildable units are returned', async () => {
@@ -147,5 +147,32 @@ describe('BuildingPanel', () => {
 
     fireEvent.keyDown(window, { key: 'Escape' });
     expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('passes onBuild and isBuildable to the buildable units panel', async () => {
+    mockedListBuildableUnitTypes.mockResolvedValue([sawmill]);
+    const onBuild = vi.fn();
+    const isBuildable = vi.fn(() => true);
+
+    render(
+      <BuildingPanel
+        unit={unit}
+        planetId="planet-1"
+        hexCoords={{ q: 2, r: 3 }}
+        onClose={vi.fn()}
+        onBuild={onBuild}
+        isBuildable={isBuildable}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Build Sawmill' })).toBeInTheDocument();
+    });
+
+    expect(isBuildable).toHaveBeenCalledWith(sawmill);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Build Sawmill' }));
+
+    expect(onBuild).toHaveBeenCalledWith(sawmill);
   });
 });

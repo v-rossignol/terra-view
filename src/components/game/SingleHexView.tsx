@@ -8,12 +8,20 @@ import { useContainerSize } from '../../hooks/useContainerSize';
 import { getBiomeColor } from '../../utils/biomeColors';
 import { getBiomeTileset } from '../../utils/biomeTilesets';
 import { clientPointToHexLocalPosition } from '../../utils/hexLocalPosition';
+import { isPointOnBuildingFootprint } from '../../utils/unitBuildFootprint';
 import { groupUnitsByHex } from '../../utils/unitLocation';
 import { hexCoordsKey } from '../../utils/unitMovement';
 import { HexUnitMarkers } from './HexUnitMarkers';
+import { BuildTargetOverlay } from './BuildTargetOverlay';
+import { ConstructionSiteOverlay } from './ConstructionSiteOverlay';
+import { GarageAreaOverlay } from './GarageAreaOverlay';
 import { MoveDestinationMarker } from './MoveDestinationMarker';
 import { MovingUnitsOverlay } from './MovingUnitsOverlay';
 import { isMovingVehicule } from '../../utils/unitMovementTrack';
+import {
+  constructionSitesForHex,
+  listOwnConstructionSites,
+} from '../../utils/unitBuilding';
 import {
   DEFAULT_HEX_LAYOUT,
   getToroidalHexScreenOffset,
@@ -27,6 +35,11 @@ const CENTER_HEX_FILL = 0.85;
 export interface MoveDestination {
   hex_coords: HexCoords;
   position: Vec2Local;
+}
+
+export interface GarageAreaPreview {
+  center: Vec2Local;
+  radiusHex: number;
 }
 
 export interface SingleHexViewProps {
@@ -43,6 +56,11 @@ export interface SingleHexViewProps {
   pendingMoveDestination?: MoveDestination | null;
   movementTracks?: Readonly<Record<string, UnitMovementTrack>>;
   onMoveDestinationSelect?: (hex_coords: HexCoords, position: Vec2Local) => void;
+  buildModeActive?: boolean;
+  buildFootprintCells?: number;
+  pendingBuildPosition?: Vec2Local | null;
+  onBuildTargetSelect?: (position: Vec2Local) => void;
+  garageAreaPreview?: GarageAreaPreview | null;
   layout?: HexLayoutConfig;
 }
 
@@ -95,6 +113,11 @@ export function SingleHexView({
   pendingMoveDestination = null,
   movementTracks = {},
   onMoveDestinationSelect,
+  buildModeActive = false,
+  buildFootprintCells = 1,
+  pendingBuildPosition = null,
+  onBuildTargetSelect,
+  garageAreaPreview = null,
   layout: baseLayout = DEFAULT_HEX_LAYOUT,
 }: SingleHexViewProps) {
   const { ref, size } = useContainerSize<HTMLDivElement>();
@@ -113,11 +136,15 @@ export function SingleHexView({
     () => new Set(cells.map((cell) => hexCoordsKey(cell.coordinates))),
     [cells],
   );
+  const constructionSites = useMemo(
+    () => listOwnConstructionSites(planetUnits, playerId),
+    [planetUnits, playerId],
+  );
   const hasMovingVehicules = useMemo(
     () => planetUnits.some(isMovingVehicule),
     [planetUnits],
   );
-  const nowMs = useAnimationNow(hasMovingVehicules);
+  const nowMs = useAnimationNow(hasMovingVehicules || constructionSites.length > 0);
   const validMoveHexKeys = useMemo(
     () => new Set(validMoveHexes.map(hexCoordsKey)),
     [validMoveHexes],
@@ -142,6 +169,7 @@ export function SingleHexView({
     'hex-grid-viewport',
     'hex-grid-viewport--focus',
     moveModeActive ? 'hex-grid-viewport--move-mode' : '',
+    buildModeActive ? 'hex-grid-viewport--build-mode' : '',
   ]
     .filter(Boolean)
     .join(' ');
@@ -149,12 +177,13 @@ export function SingleHexView({
   const handleCellClick = (
     event: MouseEvent<HTMLDivElement>,
     cellCoords: HexCoords,
+    hexUnits: UnitInstance[],
     isMoveTarget: boolean,
     isFocus: boolean,
   ) => {
     if (moveModeActive && isMoveTarget) {
       const position = clientPointToHexLocalPosition(event.currentTarget, event.clientX, event.clientY);
-      if (position != null) {
+      if (position != null && !isPointOnBuildingFootprint(position, hexUnits)) {
         onMoveDestinationSelect?.(cellCoords, position);
       }
       return;
@@ -177,8 +206,10 @@ export function SingleHexView({
               ? { x: 0, y: 0 }
               : getToroidalHexScreenOffset(focus, cellCoords, layout, radius);
             const hexUnits = unitsByHex.get(`${q},${r}`) ?? [];
+            const hexConstructionSites = constructionSitesForHex(constructionSites, cellCoords);
             const isMoveTarget = moveModeActive && validMoveHexKeys.has(hexCoordsKey(cellCoords));
-            const isNeighborClickable = !isFocus && onNeighborClick != null && !moveModeActive;
+            const isNeighborClickable =
+              !isFocus && onNeighborClick != null && !moveModeActive && !buildModeActive;
             const showMarker =
               pendingMoveDestination != null &&
               coordsMatch(pendingMoveDestination.hex_coords, cellCoords);
@@ -187,6 +218,7 @@ export function SingleHexView({
               isFocus ? 'hex-grid__cell--focus' : 'hex-grid__cell--neighbor',
               isNeighborClickable ? 'hex-grid__cell--clickable' : '',
               isMoveTarget ? 'hex-grid__cell--move-target' : '',
+              buildModeActive && isFocus ? 'hex-grid__cell--build-target' : '',
             ]
               .filter(Boolean)
               .join(' ');
@@ -203,7 +235,7 @@ export function SingleHexView({
                 }}
                 data-q={q}
                 data-r={r}
-                onClick={(event) => handleCellClick(event, cellCoords, isMoveTarget, isFocus)}
+                onClick={(event) => handleCellClick(event, cellCoords, hexUnits, isMoveTarget, isFocus)}
                 onKeyDown={
                   isNeighborClickable
                     ? (event) => {
@@ -222,10 +254,27 @@ export function SingleHexView({
                   units={hexUnits}
                   playerId={playerId}
                   ownUnitMarker="sprite"
-                  selectable={isFocus && onUnitSelect != null && !moveModeActive}
+                  selectable={isFocus && onUnitSelect != null && !moveModeActive && !buildModeActive}
                   selectedUnitId={selectedUnitId}
                   onUnitSelect={onUnitSelect}
                 />
+                {hexConstructionSites.map((site) => (
+                  <ConstructionSiteOverlay key={site.builderUnitId} site={site} nowMs={nowMs} />
+                ))}
+                {buildModeActive && isFocus ? (
+                  <BuildTargetOverlay
+                    footprintCells={buildFootprintCells}
+                    pendingPosition={pendingBuildPosition}
+                    onSelect={(position) => onBuildTargetSelect?.(position)}
+                  />
+                ) : null}
+                {garageAreaPreview != null && isFocus ? (
+                  <GarageAreaOverlay
+                    center={garageAreaPreview.center}
+                    radiusHex={garageAreaPreview.radiusHex}
+                    layout={layout}
+                  />
+                ) : null}
                 {showMarker ? <MoveDestinationMarker position={pendingMoveDestination.position} /> : null}
               </div>
             );

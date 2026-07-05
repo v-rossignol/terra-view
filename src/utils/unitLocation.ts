@@ -3,6 +3,8 @@ import type { Vec2Local } from '../types/player';
 import type { UnitUpdatePayload } from '../types/socket';
 import type { UnitInstance } from '../types/unit';
 import { hasPlanetHex, isPlayerOnPlanet } from './playerLocation';
+import { isParkedVehicle } from './unitParking';
+import { parseUnitExtractionMetadata } from './unitExtraction';
 
 const DEFAULT_HEX_LOCAL_POSITION: Vec2Local = { x: 0.5, y: 0.5 };
 
@@ -36,12 +38,34 @@ export function applyUnitUpdate(
   }
 
   const unit = units[index];
+  let metadata = unit.metadata;
+
+  if (payload.metadata != null) {
+    metadata = payload.metadata;
+  } else if (payload.status !== 'extracting') {
+    const { extraction: _extraction, ...restMetadata } = metadata;
+    metadata = restMetadata;
+  } else if (payload.cargo != null) {
+    const extraction = parseUnitExtractionMetadata(metadata);
+    if (extraction != null) {
+      metadata = {
+        ...metadata,
+        extraction: {
+          ...extraction,
+          lastTickAt: new Date().toISOString(),
+        },
+      };
+    }
+  }
+
   const next = [...units];
   next[index] = {
     ...unit,
     status: payload.status,
     location: payload.location,
+    metadata,
     ...(payload.cargo != null ? { cargo: payload.cargo } : {}),
+    ...(payload.garage != null ? { garage: payload.garage } : {}),
   };
   return next;
 }
@@ -50,7 +74,7 @@ export function groupUnitsByHex(units: UnitInstance[]): Map<string, UnitInstance
   const grouped = new Map<string, UnitInstance[]>();
 
   for (const unit of units) {
-    if (unit.status === 'destroyed') {
+    if (unit.status === 'destroyed' || isParkedVehicle(unit)) {
       continue;
     }
 

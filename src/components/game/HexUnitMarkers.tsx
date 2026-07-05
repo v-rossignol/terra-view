@@ -1,4 +1,6 @@
+import { getBuildFootprintCells } from '@infinity/shared-utils';
 import type { UnitInstance } from '../../types/unit';
+import { buildFootprintToCssRect } from '../../utils/buildFootprintStyle';
 import { hexLocalPositionToPercent } from '../../utils/hexLocalPosition';
 import { getUnitHexLocalPosition } from '../../utils/unitLocation';
 import { getUnitSprite } from '../../utils/unitSprites';
@@ -32,20 +34,26 @@ export function HexUnitMarkers({
     <div className={unitsClassName}>
       {units.map((unit) => {
         const isOwnUnit = playerId != null && unit.ownerId === playerId;
-        const useOwnDot = isOwnUnit && ownUnitMarker === 'dot';
+        const isConstructing = unit.status === 'building' && unit.type.type === 'vehicule';
+        const useOwnDot = isOwnUnit && ownUnitMarker === 'dot' && !isConstructing;
         const sprite = useOwnDot ? undefined : getUnitSprite(unit.typeId);
         const isSelected = selectedUnitId === unit.id;
         const isMovingVehicule = unit.status === 'moving' && unit.type.type === 'vehicule';
+        const isExtracting = unit.status === 'extracting';
+        const isBuilding = unit.type.type === 'building';
         const unitClassName = [
           'hex-grid__unit',
           useOwnDot ? 'hex-grid__unit--own' : '',
+          isConstructing ? 'hex-grid__unit--constructing' : '',
           sprite != null ? 'hex-grid__unit--sprite' : '',
+          isBuilding ? 'hex-grid__unit--footprint' : '',
           isSelected ? 'hex-grid__unit--selected' : '',
           selectable ? 'hex-grid__unit--selectable' : '',
           isMovingVehicule ? 'hex-grid__unit--moving' : '',
-          !useOwnDot && sprite == null && unit.type.type === 'building'
+          isExtracting ? 'hex-grid__unit--extracting' : '',
+          !useOwnDot && !isConstructing && sprite == null && isBuilding
             ? 'hex-grid__unit--building'
-            : !useOwnDot && sprite == null
+            : !useOwnDot && !isConstructing && sprite == null
               ? 'hex-grid__unit--vehicule'
               : '',
         ]
@@ -53,12 +61,13 @@ export function HexUnitMarkers({
           .join(' ');
 
         const position = getUnitHexLocalPosition(unit) ?? { x: 0.5, y: 0.5 };
-        const { left, top } = hexLocalPositionToPercent(position);
+        const placementStyle = isBuilding
+          ? buildFootprintToCssRect(position, getBuildFootprintCells(unit.type.size))
+          : hexLocalPositionToPercent(position);
         const commonProps = {
           className: unitClassName,
           style: {
-            left,
-            top,
+            ...placementStyle,
             ...(sprite != null ? { backgroundImage: `url(${sprite})` } : {}),
           },
           title: unit.type.name,
