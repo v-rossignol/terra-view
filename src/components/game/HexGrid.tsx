@@ -88,6 +88,37 @@ export function HexGrid({
             const { x, y } = axialToScreen(q, r, layout);
             const isHovered =
               hoveredHex != null && hoveredHex.q === q && hoveredHex.r === r;
+            const surfaceHostClassName = [
+              'hex-grid__cell-surface-host',
+              isHovered ? 'hex-grid__cell-surface-host--hovered' : '',
+            ]
+              .filter(Boolean)
+              .join(' ');
+
+            return (
+              <div
+                key={`surface-${q},${r}`}
+                className={surfaceHostClassName}
+                style={{ left: x, top: y }}
+                data-q={q}
+                data-r={r}
+                aria-hidden="true"
+              >
+                <div
+                  className="hex-grid__cell-surface"
+                  style={{
+                    backgroundColor: getBiomeColor(hex.biome),
+                    backgroundImage: `url(${getBiomeTileset(hex.biome)})`,
+                  }}
+                />
+              </div>
+            );
+          })}
+          {cells.map((hex) => {
+            const { q, r } = hex.coordinates;
+            const { x, y } = axialToScreen(q, r, layout);
+            const isHovered =
+              hoveredHex != null && hoveredHex.q === q && hoveredHex.r === r;
             const hexUnits = unitsByHex.get(`${q},${r}`) ?? [];
             const cellClassName = [
               'hex-grid__cell',
@@ -99,14 +130,9 @@ export function HexGrid({
 
             return (
               <div
-                key={`${q},${r}`}
+                key={`layer-${q},${r}`}
                 className={cellClassName}
-                style={{
-                  left: x,
-                  top: y,
-                  backgroundColor: getBiomeColor(hex.biome),
-                  backgroundImage: `url(${getBiomeTileset(hex.biome)})`,
-                }}
+                style={{ left: x, top: y }}
                 data-q={q}
                 data-r={r}
                 onMouseEnter={() => onHexEnter?.({ q, r })}
@@ -121,7 +147,9 @@ export function HexGrid({
                 role={onHexClick != null ? 'button' : undefined}
                 tabIndex={onHexClick != null ? 0 : undefined}
               >
-                <HexUnitMarkers units={hexUnits} playerId={playerId} />
+                <div className="hex-grid__cell-layer">
+                  <HexUnitMarkers units={hexUnits} playerId={playerId} />
+                </div>
               </div>
             );
           })}

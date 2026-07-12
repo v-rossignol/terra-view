@@ -1,31 +1,28 @@
 import { useCallback, useState } from 'react';
 import type { MouseEvent } from 'react';
+import type { BuildingZoneId } from '@infinity/shared-config';
 import {
-  buildGridAnchorToPosition,
-  isBuildFootprintInsideHex,
-  normalizedPointToBuildGridAnchor,
-  type BuildGridCell,
+  buildPlacementAnchorToBuildingZoneId,
+  buildingZoneIdToBuildPlacementAnchor,
+  isBuildPlacementValid,
+  normalizedPointToBuildPlacementAnchor,
+  type BuildPlacementAnchor,
 } from '@infinity/shared-utils';
-import type { Vec2Local } from '../../types/player';
 import { buildFootprintAnchorToCssRect } from '../../utils/buildFootprintStyle';
 import { clientPointToHexLocalPosition } from '../../utils/hexLocalPosition';
 
 export interface BuildTargetOverlayProps {
   footprintCells: number;
-  pendingPosition?: Vec2Local | null;
-  onSelect: (position: Vec2Local) => void;
-}
-
-function positionToAnchor(position: Vec2Local, footprintCells: number): BuildGridCell {
-  return normalizedPointToBuildGridAnchor(position, footprintCells);
+  pendingBuildingZoneId?: BuildingZoneId | null;
+  onSelect: (buildingZoneId: BuildingZoneId) => void;
 }
 
 export function BuildTargetOverlay({
   footprintCells,
-  pendingPosition = null,
+  pendingBuildingZoneId = null,
   onSelect,
 }: BuildTargetOverlayProps) {
-  const [hoverAnchor, setHoverAnchor] = useState<BuildGridCell | null>(null);
+  const [hoverAnchor, setHoverAnchor] = useState<BuildPlacementAnchor | null>(null);
 
   const updateHoverFromEvent = useCallback(
     (event: MouseEvent<HTMLDivElement>) => {
@@ -35,9 +32,9 @@ export function BuildTargetOverlay({
         return;
       }
 
-      const anchor = normalizedPointToBuildGridAnchor(point, footprintCells);
+      const anchor = normalizedPointToBuildPlacementAnchor(point, footprintCells);
       setHoverAnchor(
-        isBuildFootprintInsideHex(anchor, footprintCells) ? anchor : null,
+        isBuildPlacementValid(anchor, footprintCells) ? anchor : null,
       );
     },
     [footprintCells],
@@ -50,18 +47,20 @@ export function BuildTargetOverlay({
         return;
       }
 
-      const anchor = normalizedPointToBuildGridAnchor(point, footprintCells);
-      if (!isBuildFootprintInsideHex(anchor, footprintCells)) {
+      const anchor = normalizedPointToBuildPlacementAnchor(point, footprintCells);
+      if (!isBuildPlacementValid(anchor, footprintCells)) {
         return;
       }
 
-      onSelect(buildGridAnchorToPosition(anchor, footprintCells));
+      onSelect(buildPlacementAnchorToBuildingZoneId(anchor));
     },
     [footprintCells, onSelect],
   );
 
   const pendingAnchor =
-    pendingPosition != null ? positionToAnchor(pendingPosition, footprintCells) : null;
+    pendingBuildingZoneId != null
+      ? buildingZoneIdToBuildPlacementAnchor(pendingBuildingZoneId)
+      : null;
 
   return (
     <div

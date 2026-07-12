@@ -2,9 +2,16 @@ import { act, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { usePlanetUnitsWithSocket } from '@hooks/usePlanetSocket';
 import { planetSocketService } from '@services/planetSocketService';
+import { unitService } from '@services/unitService';
 import type { UnitInstance } from '../../src/types/unit';
 import { SOCKET_EVENTS } from '../../src/types/socket';
 import { SOCKET_IO_PATH } from '../../src/utils/socketUrl';
+
+vi.mock('@services/unitService', () => ({
+  unitService: {
+    listPlanetUnits: vi.fn(),
+  },
+}));
 
 const { mockEmit, mockOn, mockOnce, mockSocket, mockIo } = vi.hoisted(
   () => {
@@ -71,6 +78,7 @@ const baseUnit = (overrides: Partial<UnitInstance> = {}): UnitInstance => ({
 describe('usePlanetUnitsWithSocket', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(unitService.listPlanetUnits).mockResolvedValue([]);
     planetSocketService.disconnect();
     mockSocket.connected = false;
 
@@ -247,5 +255,52 @@ describe('usePlanetUnitsWithSocket', () => {
     renderHook(() => usePlanetUnitsWithSocket(null, []));
 
     expect(mockIo).not.toHaveBeenCalled();
+  });
+
+  it('refetches planet units when UNIT_UPDATE targets a new unit', async () => {
+    const builderUnit = baseUnit({ id: 'builder-1', status: 'building' });
+    const builtUnit = baseUnit({
+      id: 'sawmill-1',
+      typeId: 'sawmill',
+      status: 'idle',
+      type: {
+        id: 'sawmill',
+        name: 'Sawmill',
+        type: 'building',
+        size: 'small',
+        mobility: false,
+        speed: null,
+        environments: ['forest'],
+        rules: [],
+        capabilities: {},
+        description: null,
+        metadata: {},
+      },
+    });
+
+    vi.mocked(unitService.listPlanetUnits).mockResolvedValue([builderUnit, builtUnit]);
+
+    const { result } = renderHook(() => usePlanetUnitsWithSocket('planet-1', [builderUnit]));
+
+    await waitFor(() => {
+      expect(mockEmit).toHaveBeenCalledWith('PLANET_JOIN', { planetId: 'planet-1' });
+    });
+
+    act(() => {
+      result.current.patchUnit({
+        unitId: 'sawmill-1',
+        status: 'idle',
+        location: builtUnit.location,
+        cargo: {},
+      });
+    });
+
+    await waitFor(() => {
+      expect(unitService.listPlanetUnits).toHaveBeenCalledWith('planet-1');
+    });
+
+    await waitFor(() => {
+      expect(result.current.units).toEqual([builderUnit, builtUnit]);
+    });
   });
 });

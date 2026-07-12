@@ -59,6 +59,20 @@ const sawmillOnFocusHex: UnitInstance = {
   },
 };
 
+const sawmillOnNeighborHex: UnitInstance = {
+  ...sawmillOnFocusHex,
+  id: 'sawmill-neighbor',
+  location: {
+    cube: { id: 'cube-1' },
+    starSystem: { id: 'system-1' },
+    planet: {
+      id: 'planet-1',
+      hex_coords: { q: 2, r: 4 },
+      position: { x: 0.5, y: 0.5 },
+    },
+  },
+};
+
 describe('SingleHexView move mode', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
@@ -81,7 +95,7 @@ describe('SingleHexView move mode', () => {
       />,
     );
 
-    const focusCell = container.querySelector('[data-q="2"][data-r="3"]') as HTMLElement;
+    const focusCell = container.querySelector('.hex-grid__cell[data-q="2"][data-r="3"]') as HTMLElement;
     Object.defineProperty(focusCell, 'getBoundingClientRect', {
       configurable: true,
       value: () => new DOMRect(100, 100, 200, 160),
@@ -110,7 +124,7 @@ describe('SingleHexView move mode', () => {
       />,
     );
 
-    const focusCell = container.querySelector('[data-q="2"][data-r="3"]') as HTMLElement;
+    const focusCell = container.querySelector('.hex-grid__cell[data-q="2"][data-r="3"]') as HTMLElement;
     Object.defineProperty(focusCell, 'getBoundingClientRect', {
       configurable: true,
       value: () => new DOMRect(100, 100, 200, 160),
@@ -136,7 +150,7 @@ describe('SingleHexView move mode', () => {
       />,
     );
 
-    const focusCell = container.querySelector('[data-q="2"][data-r="3"]') as HTMLElement;
+    const focusCell = container.querySelector('.hex-grid__cell[data-q="2"][data-r="3"]') as HTMLElement;
     Object.defineProperty(focusCell, 'getBoundingClientRect', {
       configurable: true,
       value: () => new DOMRect(100, 100, 200, 160),
@@ -167,7 +181,7 @@ describe('SingleHexView move mode', () => {
       />,
     );
 
-    const neighborCell = container.querySelector('[data-q="2"][data-r="4"]') as HTMLElement;
+    const neighborCell = container.querySelector('.hex-grid__cell[data-q="2"][data-r="4"]') as HTMLElement;
     Object.defineProperty(neighborCell, 'getBoundingClientRect', {
       configurable: true,
       value: () => new DOMRect(300, 100, 200, 160),
@@ -194,7 +208,7 @@ describe('SingleHexView move mode', () => {
     expect(container.querySelector('.hex-grid__move-marker')).toBeInTheDocument();
   });
 
-  it('adds move mode classes to the viewport and valid cells', () => {
+  it('adds move mode class to the viewport without highlighting valid cells', () => {
     const { container } = render(
       <SingleHexView
         hex={focusHex}
@@ -206,7 +220,7 @@ describe('SingleHexView move mode', () => {
     );
 
     expect(container.querySelector('.hex-grid-viewport--move-mode')).toBeInTheDocument();
-    expect(container.querySelectorAll('.hex-grid__cell--move-target')).toHaveLength(1);
+    expect(container.querySelectorAll('.hex-grid__cell--move-target')).toHaveLength(0);
   });
 
   it('calls onBuildTargetSelect when clicking the focus hex in build mode', () => {
@@ -223,7 +237,7 @@ describe('SingleHexView move mode', () => {
       />,
     );
 
-    const focusCell = container.querySelector('[data-q="2"][data-r="3"]') as HTMLElement;
+    const focusCell = container.querySelector('.hex-grid__cell[data-q="2"][data-r="3"]') as HTMLElement;
     const overlay = focusCell.querySelector('.hex-grid__build-overlay') as HTMLElement;
     Object.defineProperty(overlay, 'getBoundingClientRect', {
       configurable: true,
@@ -232,9 +246,7 @@ describe('SingleHexView move mode', () => {
 
     fireEvent.click(overlay, { clientX: 200, clientY: 180 });
 
-    expect(onBuildTargetSelect).toHaveBeenCalledWith(
-      expect.objectContaining({ x: expect.any(Number), y: expect.any(Number) }),
-    );
+    expect(onBuildTargetSelect).toHaveBeenCalledWith('central-1-1');
   });
 
   it('renders a garage area circle on the focus hex when preview is set', () => {
@@ -252,8 +264,9 @@ describe('SingleHexView move mode', () => {
 
     const garageArea = container.querySelector('.hex-grid__garage-area');
     expect(garageArea).toBeInTheDocument();
-    expect(garageArea?.parentElement).toHaveAttribute('data-q', '2');
-    expect(garageArea?.parentElement).toHaveAttribute('data-r', '3');
+    const focusCell = garageArea?.closest('.hex-grid__cell');
+    expect(focusCell).toHaveAttribute('data-q', '2');
+    expect(focusCell).toHaveAttribute('data-r', '3');
   });
 
   it('adds build mode classes to the viewport and focus cell', () => {
@@ -301,7 +314,7 @@ describe('SingleHexView move mode', () => {
                 targetTypeId: 'sawmill',
                 planetId: 'planet-1',
                 hexCoords: { q: 2, r: 3 },
-                position: { x: 0.5, y: 0.5 },
+                buildingZoneId: 'central-1-1',
                 startedAt: '2026-01-01T00:00:00.000Z',
                 completedAt: '2026-01-01T00:01:40.000Z',
               },
@@ -326,8 +339,32 @@ describe('SingleHexView move mode', () => {
       />,
     );
 
-    const focusCell = container.querySelector('[data-q="2"][data-r="3"]');
+    const focusCell = container.querySelector('.hex-grid__cell[data-q="2"][data-r="3"]');
     expect(focusCell?.querySelector('.hex-grid__construction-footprint')).toBeInTheDocument();
+    expect(focusCell?.querySelector('.hex-grid__construction-label')).toHaveTextContent('Sawmill');
     expect(focusCell?.querySelector('.hex-grid__construction-progress')).toHaveTextContent(/\d+%/);
+  });
+
+  it('calls onNeighborUnitSelect when clicking a unit on a neighbor hex', () => {
+    const onNeighborUnitSelect = vi.fn();
+
+    const { container } = render(
+      <SingleHexView
+        hex={focusHex}
+        radius={10}
+        neighbors={[neighborHex]}
+        planetUnits={[sawmillOnNeighborHex]}
+        onUnitSelect={vi.fn()}
+        onNeighborUnitSelect={onNeighborUnitSelect}
+      />,
+    );
+
+    const neighborCell = container.querySelector('.hex-grid__cell[data-q="2"][data-r="4"]');
+    const unitButton = neighborCell?.querySelector('.hex-grid__unit--selectable');
+
+    expect(unitButton).toBeInTheDocument();
+    fireEvent.click(unitButton!);
+
+    expect(onNeighborUnitSelect).toHaveBeenCalledWith({ q: 2, r: 4 }, sawmillOnNeighborHex);
   });
 });

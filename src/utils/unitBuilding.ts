@@ -1,5 +1,5 @@
-import type { UnitSize } from '@infinity/shared-config';
-import { getBuildFootprintCells } from '@infinity/shared-utils';
+import type { BuildingZoneId, UnitSize } from '@infinity/shared-config';
+import { buildPositionFromBuildingZoneId, getBuildFootprintCells } from '@infinity/shared-utils';
 import type { HexCoords } from '../types/planet';
 import type { Vec2Local } from '../types/player';
 import type { UnitInstance } from '../types/unit';
@@ -8,7 +8,7 @@ export interface BuildingMetadata {
   targetTypeId: string;
   planetId: string;
   hexCoords: HexCoords;
-  position: Vec2Local;
+  buildingZoneId: BuildingZoneId;
   startedAt: string;
   completedAt: string;
 }
@@ -16,6 +16,7 @@ export interface BuildingMetadata {
 export interface ConstructionSite {
   builderUnitId: string;
   targetTypeId: string;
+  targetName: string;
   footprintCells: number;
   hexCoords: HexCoords;
   position: Vec2Local;
@@ -31,7 +32,7 @@ export function parseBuildingMetadata(metadata: Record<string, unknown>): Buildi
 
   const building = raw as Record<string, unknown>;
   const hexCoords = building.hexCoords;
-  const position = building.position;
+  const buildingZoneId = building.buildingZoneId;
 
   if (
     typeof building.targetTypeId !== 'string' ||
@@ -42,10 +43,7 @@ export function parseBuildingMetadata(metadata: Record<string, unknown>): Buildi
     typeof hexCoords !== 'object' ||
     typeof (hexCoords as Record<string, unknown>).q !== 'number' ||
     typeof (hexCoords as Record<string, unknown>).r !== 'number' ||
-    position == null ||
-    typeof position !== 'object' ||
-    typeof (position as Record<string, unknown>).x !== 'number' ||
-    typeof (position as Record<string, unknown>).y !== 'number'
+    typeof buildingZoneId !== 'string'
   ) {
     return null;
   }
@@ -54,7 +52,7 @@ export function parseBuildingMetadata(metadata: Record<string, unknown>): Buildi
     targetTypeId: building.targetTypeId,
     planetId: building.planetId,
     hexCoords: hexCoords as HexCoords,
-    position: position as Vec2Local,
+    buildingZoneId: buildingZoneId as BuildingZoneId,
     startedAt: building.startedAt,
     completedAt: building.completedAt,
   };
@@ -79,9 +77,27 @@ export function computeBuildProgressPercent(
   return Math.min(100, Math.max(0, Math.floor(raw)));
 }
 
+function resolveTargetTypeFromPlanet(
+  targetTypeId: string,
+  planetUnits: UnitInstance[],
+): UnitInstance['type'] | undefined {
+  return planetUnits.find((unit) => unit.typeId === targetTypeId)?.type;
+}
+
+function humanizeTypeId(typeId: string): string {
+  return typeId
+    .split('-')
+    .filter((part) => part.length > 0)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
+}
+
 function resolveTargetTypeSize(targetTypeId: string, planetUnits: UnitInstance[]): UnitSize {
-  const match = planetUnits.find((unit) => unit.typeId === targetTypeId);
-  return match?.type.size ?? 'small';
+  return resolveTargetTypeFromPlanet(targetTypeId, planetUnits)?.size ?? 'small';
+}
+
+function resolveTargetTypeName(targetTypeId: string, planetUnits: UnitInstance[]): string {
+  return resolveTargetTypeFromPlanet(targetTypeId, planetUnits)?.name ?? humanizeTypeId(targetTypeId);
 }
 
 export function listOwnConstructionSites(
@@ -107,11 +123,12 @@ export function listOwnConstructionSites(
     sites.push({
       builderUnitId: unit.id,
       targetTypeId: building.targetTypeId,
+      targetName: resolveTargetTypeName(building.targetTypeId, planetUnits),
       footprintCells: getBuildFootprintCells(
         resolveTargetTypeSize(building.targetTypeId, planetUnits),
       ),
       hexCoords: building.hexCoords,
-      position: building.position,
+      position: buildPositionFromBuildingZoneId(building.buildingZoneId),
       startedAt: building.startedAt,
       completedAt: building.completedAt,
     });

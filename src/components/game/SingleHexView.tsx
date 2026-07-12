@@ -1,5 +1,6 @@
-import { useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import type { CSSProperties, MouseEvent } from 'react';
+import type { BuildingZoneId } from '@infinity/shared-config';
 import type { HexCoords, PlanetHexagon } from '../../types/planet';
 import type { Vec2Local } from '../../types/player';
 import type { UnitInstance, UnitMovementTrack } from '../../types/unit';
@@ -50,6 +51,7 @@ export interface SingleHexViewProps {
   planetUnits?: UnitInstance[];
   selectedUnitId?: string | null;
   onUnitSelect?: (unit: UnitInstance) => void;
+  onNeighborUnitSelect?: (coords: HexCoords, unit: UnitInstance) => void;
   onNeighborClick?: (coords: HexCoords) => void;
   moveModeActive?: boolean;
   validMoveHexes?: HexCoords[];
@@ -58,8 +60,8 @@ export interface SingleHexViewProps {
   onMoveDestinationSelect?: (hex_coords: HexCoords, position: Vec2Local) => void;
   buildModeActive?: boolean;
   buildFootprintCells?: number;
-  pendingBuildPosition?: Vec2Local | null;
-  onBuildTargetSelect?: (position: Vec2Local) => void;
+  pendingBuildingZoneId?: BuildingZoneId | null;
+  onBuildTargetSelect?: (buildingZoneId: BuildingZoneId) => void;
   garageAreaPreview?: GarageAreaPreview | null;
   layout?: HexLayoutConfig;
 }
@@ -107,6 +109,7 @@ export function SingleHexView({
   planetUnits = [],
   selectedUnitId = null,
   onUnitSelect,
+  onNeighborUnitSelect,
   onNeighborClick,
   moveModeActive = false,
   validMoveHexes = [],
@@ -115,7 +118,7 @@ export function SingleHexView({
   onMoveDestinationSelect,
   buildModeActive = false,
   buildFootprintCells = 1,
-  pendingBuildPosition = null,
+  pendingBuildingZoneId = null,
   onBuildTargetSelect,
   garageAreaPreview = null,
   layout: baseLayout = DEFAULT_HEX_LAYOUT,
@@ -152,6 +155,65 @@ export function SingleHexView({
 
   const centerX = size.width / 2 - layout.hexWidth / 2;
   const centerY = size.height / 2 - layout.hexHeight / 2;
+
+  const cellRenderData = useMemo(
+    () =>
+      cells.map((cell) => {
+        const { q, r } = cell.coordinates;
+        const cellCoords = { q, r };
+        const isFocus = q === focus.q && r === focus.r;
+        const offset = isFocus
+          ? { x: 0, y: 0 }
+          : getToroidalHexScreenOffset(focus, cellCoords, layout, radius);
+
+        return {
+          cell,
+          cellCoords,
+          isFocus,
+          left: centerX + offset.x,
+          top: centerY + offset.y,
+          hexUnits: unitsByHex.get(`${q},${r}`) ?? [],
+          hexConstructionSites: constructionSitesForHex(constructionSites, cellCoords),
+          isMoveTarget: moveModeActive && validMoveHexKeys.has(hexCoordsKey(cellCoords)),
+          isNeighborClickable:
+            !isFocus && onNeighborClick != null && !moveModeActive && !buildModeActive,
+          showMarker:
+            pendingMoveDestination != null &&
+            coordsMatch(pendingMoveDestination.hex_coords, cellCoords),
+          cellClassName: [
+            'hex-grid__cell',
+            isFocus ? 'hex-grid__cell--focus' : 'hex-grid__cell--neighbor',
+            !isFocus && onNeighborClick != null && !moveModeActive && !buildModeActive
+              ? 'hex-grid__cell--clickable'
+              : '',
+            buildModeActive && isFocus ? 'hex-grid__cell--build-target' : '',
+          ]
+            .filter(Boolean)
+            .join(' '),
+          surfaceHostClassName: [
+            'hex-grid__cell-surface-host',
+            isFocus ? 'hex-grid__cell-surface-host--focus' : 'hex-grid__cell-surface-host--neighbor',
+          ]
+            .filter(Boolean)
+            .join(' '),
+        };
+      }),
+    [
+      cells,
+      focus,
+      layout,
+      radius,
+      centerX,
+      centerY,
+      unitsByHex,
+      constructionSites,
+      moveModeActive,
+      validMoveHexKeys,
+      onNeighborClick,
+      buildModeActive,
+      pendingMoveDestination,
+    ],
+  );
 
   const viewportStyle: CSSProperties = {
     ['--hex-scale' as string]: scale,
@@ -194,91 +256,134 @@ export function SingleHexView({
     }
   };
 
+  const handleUnitMarkerSelect = useCallback(
+    (cellCoords: HexCoords, isFocus: boolean, unit: UnitInstance) => {
+      if (moveModeActive || buildModeActive) {
+        return;
+      }
+
+      if (isFocus) {
+        onUnitSelect?.(unit);
+        return;
+      }
+
+      if (onNeighborUnitSelect != null) {
+        onNeighborUnitSelect(cellCoords, unit);
+        return;
+      }
+
+      onNeighborClick?.(cellCoords);
+    },
+    [buildModeActive, moveModeActive, onNeighborClick, onNeighborUnitSelect, onUnitSelect],
+  );
+
+  const unitSelectionEnabled =
+    !moveModeActive && !buildModeActive && (onUnitSelect != null || onNeighborUnitSelect != null);
+
   return (
     <div ref={ref} className={viewportClassName} style={viewportStyle}>
       {isReady ? (
         <div className="hex-grid hex-grid--focus-cluster" style={clusterStyle}>
-          {cells.map((cell) => {
-            const { q, r } = cell.coordinates;
-            const cellCoords = { q, r };
-            const isFocus = q === focus.q && r === focus.r;
-            const offset = isFocus
-              ? { x: 0, y: 0 }
-              : getToroidalHexScreenOffset(focus, cellCoords, layout, radius);
-            const hexUnits = unitsByHex.get(`${q},${r}`) ?? [];
-            const hexConstructionSites = constructionSitesForHex(constructionSites, cellCoords);
-            const isMoveTarget = moveModeActive && validMoveHexKeys.has(hexCoordsKey(cellCoords));
-            const isNeighborClickable =
-              !isFocus && onNeighborClick != null && !moveModeActive && !buildModeActive;
-            const showMarker =
-              pendingMoveDestination != null &&
-              coordsMatch(pendingMoveDestination.hex_coords, cellCoords);
-            const cellClassName = [
-              'hex-grid__cell',
-              isFocus ? 'hex-grid__cell--focus' : 'hex-grid__cell--neighbor',
-              isNeighborClickable ? 'hex-grid__cell--clickable' : '',
-              isMoveTarget ? 'hex-grid__cell--move-target' : '',
-              buildModeActive && isFocus ? 'hex-grid__cell--build-target' : '',
-            ]
-              .filter(Boolean)
-              .join(' ');
+          {cellRenderData.map(({ cell, cellCoords, left, top, surfaceHostClassName }) => {
+              const { q, r } = cellCoords;
 
-            return (
-              <div
-                key={`${q},${r}`}
-                className={cellClassName}
-                style={{
-                  left: centerX + offset.x,
-                  top: centerY + offset.y,
-                  backgroundColor: getBiomeColor(cell.biome),
-                  backgroundImage: `url(${getBiomeTileset(cell.biome)})`,
-                }}
-                data-q={q}
-                data-r={r}
-                onClick={(event) => handleCellClick(event, cellCoords, hexUnits, isMoveTarget, isFocus)}
-                onKeyDown={
-                  isNeighborClickable
-                    ? (event) => {
-                        if (event.key === 'Enter' || event.key === ' ') {
-                          event.preventDefault();
-                          onNeighborClick(cellCoords);
+              return (
+                <div
+                  key={`surface-${q},${r}`}
+                  className={surfaceHostClassName}
+                  style={{ left, top }}
+                  data-q={q}
+                  data-r={r}
+                  aria-hidden="true"
+                >
+                  <div
+                    className="hex-grid__cell-surface"
+                    style={{
+                      backgroundColor: getBiomeColor(cell.biome),
+                      backgroundImage: `url(${getBiomeTileset(cell.biome)})`,
+                    }}
+                  />
+                </div>
+              );
+            },
+          )}
+          {cellRenderData.map(
+            ({
+              cellCoords,
+              isFocus,
+              left,
+              top,
+              hexUnits,
+              hexConstructionSites,
+              isMoveTarget,
+              isNeighborClickable,
+              showMarker,
+              cellClassName,
+            }) => {
+              const { q, r } = cellCoords;
+
+              return (
+                <div
+                  key={`layer-${q},${r}`}
+                  className={cellClassName}
+                  style={{ left, top }}
+                  data-q={q}
+                  data-r={r}
+                  onClick={(event) =>
+                    handleCellClick(event, cellCoords, hexUnits, isMoveTarget, isFocus)
+                  }
+                  onKeyDown={
+                    isNeighborClickable
+                      ? (event) => {
+                          if (event.key === 'Enter' || event.key === ' ') {
+                            event.preventDefault();
+                            onNeighborClick?.(cellCoords);
+                          }
                         }
-                      }
-                    : undefined
-                }
-                role={isNeighborClickable ? 'button' : undefined}
-                tabIndex={isNeighborClickable ? 0 : undefined}
-                aria-label={!isFocus ? `Neighbor hex (${q}, ${r})` : undefined}
-              >
-                <HexUnitMarkers
-                  units={hexUnits}
-                  playerId={playerId}
-                  ownUnitMarker="sprite"
-                  selectable={isFocus && onUnitSelect != null && !moveModeActive && !buildModeActive}
-                  selectedUnitId={selectedUnitId}
-                  onUnitSelect={onUnitSelect}
-                />
-                {hexConstructionSites.map((site) => (
-                  <ConstructionSiteOverlay key={site.builderUnitId} site={site} nowMs={nowMs} />
-                ))}
-                {buildModeActive && isFocus ? (
-                  <BuildTargetOverlay
-                    footprintCells={buildFootprintCells}
-                    pendingPosition={pendingBuildPosition}
-                    onSelect={(position) => onBuildTargetSelect?.(position)}
-                  />
-                ) : null}
-                {garageAreaPreview != null && isFocus ? (
-                  <GarageAreaOverlay
-                    center={garageAreaPreview.center}
-                    radiusHex={garageAreaPreview.radiusHex}
-                    layout={layout}
-                  />
-                ) : null}
-                {showMarker ? <MoveDestinationMarker position={pendingMoveDestination.position} /> : null}
-              </div>
-            );
-          })}
+                      : undefined
+                  }
+                  role={isNeighborClickable ? 'button' : undefined}
+                  tabIndex={isNeighborClickable ? 0 : undefined}
+                  aria-label={!isFocus ? `Neighbor hex (${q}, ${r})` : undefined}
+                >
+                  <div className="hex-grid__cell-layer">
+                    <HexUnitMarkers
+                      units={hexUnits}
+                      playerId={playerId}
+                      ownUnitMarker="sprite"
+                      selectable={unitSelectionEnabled}
+                      selectedUnitId={selectedUnitId}
+                      onUnitSelect={(unit) => handleUnitMarkerSelect(cellCoords, isFocus, unit)}
+                    />
+                    {hexConstructionSites.map((site) => (
+                      <ConstructionSiteOverlay
+                        key={site.builderUnitId}
+                        site={site}
+                        nowMs={nowMs}
+                      />
+                    ))}
+                    {buildModeActive && isFocus ? (
+                      <BuildTargetOverlay
+                        footprintCells={buildFootprintCells}
+                        pendingBuildingZoneId={pendingBuildingZoneId}
+                        onSelect={(buildingZoneId) => onBuildTargetSelect?.(buildingZoneId)}
+                      />
+                    ) : null}
+                    {garageAreaPreview != null && isFocus ? (
+                      <GarageAreaOverlay
+                        center={garageAreaPreview.center}
+                        radiusHex={garageAreaPreview.radiusHex}
+                        layout={layout}
+                      />
+                    ) : null}
+                    {showMarker ? (
+                      <MoveDestinationMarker position={pendingMoveDestination!.position} />
+                    ) : null}
+                  </div>
+                </div>
+              );
+            },
+          )}
           <MovingUnitsOverlay
             units={planetUnits}
             movementTracks={movementTracks}

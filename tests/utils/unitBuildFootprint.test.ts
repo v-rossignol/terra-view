@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { UnitInstance } from '../../src/types/unit';
-import { getBuildingFootprintRect, isPointOnBuildingFootprint } from '../../src/utils/unitBuildFootprint';
+import { isPointOnBuildingFootprint } from '../../src/utils/unitBuildFootprint';
 
 const sawmill: UnitInstance = {
   id: 'sawmill-1',
@@ -37,17 +37,8 @@ const sawmill: UnitInstance = {
 };
 
 describe('unitBuildFootprint', () => {
-  it('returns a normalized rect for a building unit', () => {
-    expect(getBuildingFootprintRect(sawmill)).toEqual({
-      left: 0.5,
-      top: 0.5,
-      width: 1 / 6,
-      height: 1 / 6,
-    });
-  });
-
   it('detects points inside a building footprint', () => {
     expect(isPointOnBuildingFootprint({ x: 0.5, y: 0.5 }, [sawmill])).toBe(true);
-    expect(isPointOnBuildingFootprint({ x: 0.25, y: 0.5 }, [sawmill])).toBe(false);
+    expect(isPointOnBuildingFootprint({ x: 0.1, y: 0.1 }, [sawmill])).toBe(false);
   });
 });

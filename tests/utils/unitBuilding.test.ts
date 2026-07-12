@@ -28,7 +28,7 @@ const builderUnit: UnitInstance = {
       targetTypeId: 'sawmill',
       planetId: 'planet-1',
       hexCoords: { q: 2, r: 3 },
-      position: { x: 0.5, y: 0.5 },
+      buildingZoneId: 'central-1-1',
       startedAt: '2026-01-01T00:00:00.000Z',
       completedAt: '2026-01-01T00:01:40.000Z',
     },
@@ -56,7 +56,7 @@ describe('parseBuildingMetadata', () => {
       targetTypeId: 'sawmill',
       planetId: 'planet-1',
       hexCoords: { q: 2, r: 3 },
-      position: { x: 0.5, y: 0.5 },
+      buildingZoneId: 'central-1-1',
       startedAt: '2026-01-01T00:00:00.000Z',
       completedAt: '2026-01-01T00:01:40.000Z',
     });
@@ -113,6 +113,7 @@ describe('listOwnConstructionSites', () => {
     expect(sites[0]).toMatchObject({
       builderUnitId: 'builder-1',
       targetTypeId: 'sawmill',
+      targetName: 'Sawmill',
       footprintCells: 1,
       hexCoords: { q: 2, r: 3 },
     });

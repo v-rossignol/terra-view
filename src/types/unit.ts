@@ -1,4 +1,4 @@
-import type { UnitInstanceStatus } from '@infinity/shared-config';
+import type { HexCoords, Location, Vec2Local } from './player';
 
 export { UNIT_INSTANCE_STATUSES } from '@infinity/shared-config';
 export type { UnitCategory, UnitInstanceStatus, UnitSize } from '@infinity/shared-config';
@@ -10,7 +10,7 @@ export type {
   UnitTypeDefinition,
 } from '@infinity/shared-types';
 
-import type { HexCoords, Location, Vec2Local } from './player';
+import type { BuildingZoneId } from '@infinity/shared-config';
 import type { UnitCargo, UnitGarage } from '@infinity/shared-utils';
 import type { CargoResource, UnitTypeDefinition } from '@infinity/shared-types';
 
@@ -86,7 +86,7 @@ export interface BuildUnitRequest {
   planetId: string;
   targetTypeId: string;
   targetHex: HexCoords;
-  targetPosition?: Vec2Local;
+  buildingZoneId: BuildingZoneId;
 }
 
 export interface BuildOrderResult {

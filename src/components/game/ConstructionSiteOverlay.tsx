@@ -18,6 +18,7 @@ export function ConstructionSiteOverlay({ site, nowMs }: ConstructionSiteOverlay
         className="hex-grid__construction-footprint"
         style={buildFootprintToCssRect(site.position, site.footprintCells)}
       >
+        <span className="hex-grid__construction-label">{site.targetName}</span>
         <span className="hex-grid__construction-progress">{percent}%</span>
       </span>
     </div>
