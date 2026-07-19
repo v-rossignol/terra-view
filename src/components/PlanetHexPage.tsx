@@ -33,6 +33,11 @@ import { UnitExtractionOverlay } from './ui/UnitExtractionOverlay';
 import { BuildingPanel } from './ui/BuildingPanel';
 import { UnitGarageOverlay } from './ui/UnitGarageOverlay';
 import { getUnitHexCoords, getUnitHexLocalPosition } from '../utils/unitLocation';
+import {
+  resolveResourceExtractionHex,
+  resolveUnitExtractionHexCoords,
+} from '../utils/unitExtraction';
+import { resolveUnitExtractionBiomes } from '../utils/unitExtractionBiomes';
 import { getBiomeAllowedMoveDestinationHexes } from '../utils/unitMovement';
 
 const layoutStyle: React.CSSProperties = {
@@ -101,6 +106,7 @@ export function PlanetHexPage() {
     hex,
     neighbors,
     hexResources,
+    hexResourcesByCoords,
     playerId,
     playerName,
     starName,
@@ -154,7 +160,10 @@ export function PlanetHexPage() {
     planetUnits,
     handleSocketUnitUpdate,
   );
-  const unitsWithProjectedCargo = useUnitsWithProjectedExtractionCargo(displayUnits, hexResources);
+  const unitsWithProjectedCargo = useUnitsWithProjectedExtractionCargo(
+    displayUnits,
+    hexResourcesByCoords,
+  );
 
   useEffect(() => {
     if (status === 'unauthorized') {
@@ -231,6 +240,13 @@ export function PlanetHexPage() {
     () => unitsWithProjectedCargo.find((unit) => unit.id === selectedUnitId) ?? null,
     [unitsWithProjectedCargo, selectedUnitId],
   );
+  const extractionBiomes = useMemo(() => {
+    if (selectedUnit == null || hex == null || planetRadius == null) {
+      return [];
+    }
+
+    return resolveUnitExtractionBiomes(selectedUnit, hex, neighbors, planetRadius);
+  }, [selectedUnit, hex, neighbors, planetRadius]);
 
   const skipHexResetRef = useFollowSelectedMovingUnit({
     planetId,
@@ -499,7 +515,15 @@ export function PlanetHexPage() {
       void unitService
         .startExtract(selectedUnitId, { planetId, resourceType })
         .then((result) => {
-          if (selectedUnit != null && coords != null) {
+          if (selectedUnit != null && coords != null && planetRadius != null) {
+            const extractionHexCoords = resolveUnitExtractionHexCoords(selectedUnit, planetRadius);
+            const extractionHex =
+              resolveResourceExtractionHex(
+                extractionHexCoords,
+                hexResourcesByCoords,
+                resourceType,
+              ) ?? coords;
+
             patchUnit({
               unitId: selectedUnitId,
               status: 'extracting',
@@ -509,7 +533,7 @@ export function PlanetHexPage() {
                 extraction: {
                   resourceType: result.resourceType,
                   planetId,
-                  hexCoords: coords,
+                  hexCoords: extractionHex,
                   startedAt: result.startedAt,
                   lastTickAt: result.startedAt,
                 },
@@ -526,7 +550,7 @@ export function PlanetHexPage() {
           setPendingExtractResourceId(null);
         });
     },
-    [selectedUnitId, selectedUnit, planetId, coords, isSubmittingExtract, patchUnit],
+    [selectedUnitId, selectedUnit, planetId, coords, planetRadius, hexResourcesByCoords, isSubmittingExtract, patchUnit],
   );
 
   const handleStopClick = useCallback(() => {
@@ -948,7 +972,7 @@ export function PlanetHexPage() {
             {extractPanelOpen && selectedUnit != null ? (
               <UnitExtractionOverlay
                 unit={selectedUnit}
-                biome={hex.biome}
+                biomes={extractionBiomes}
                 extractError={moveError}
                 pendingResourceId={pendingExtractResourceId}
                 onClose={handleExtractOverlayClose}

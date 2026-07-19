@@ -29,6 +29,8 @@ export interface MovingUnitsOverlayProps {
   layout: HexLayoutConfig;
   nowMs: number;
   selectedUnitId?: string | null;
+  selectable?: boolean;
+  onUnitSelect?: (unit: UnitInstance) => void;
 }
 
 interface AnimatedUnitRender {
@@ -122,6 +124,8 @@ export function MovingUnitsOverlay({
   layout,
   nowMs,
   selectedUnitId = null,
+  selectable = false,
+  onUnitSelect,
 }: MovingUnitsOverlayProps) {
   const animatedUnits = buildAnimatedUnits(
     units,
@@ -138,13 +142,25 @@ export function MovingUnitsOverlay({
     return null;
   }
 
+  const overlayClassName = [
+    'hex-grid__moving-overlay',
+    selectable ? 'hex-grid__moving-overlay--selectable' : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
+
   return (
     <div
-      className="hex-grid__moving-overlay"
+      className={overlayClassName}
       style={{ width: clusterSize.width, height: clusterSize.height }}
-      aria-hidden="true"
+      aria-hidden={selectable ? undefined : true}
     >
-      <svg className="hex-grid__moving-paths" width={clusterSize.width} height={clusterSize.height}>
+      <svg
+        className="hex-grid__moving-paths"
+        width={clusterSize.width}
+        height={clusterSize.height}
+        aria-hidden="true"
+      >
         {animatedUnits.map(({ unit, currentX, currentY, destinationX, destinationY }) => (
           <line
             key={unit.id}
@@ -164,24 +180,40 @@ export function MovingUnitsOverlay({
           'hex-grid__unit--overlay',
           sprite != null ? 'hex-grid__unit--sprite' : 'hex-grid__unit--vehicule',
           isSelected ? 'hex-grid__unit--selected' : '',
+          selectable ? 'hex-grid__unit--selectable' : '',
           'hex-grid__unit--moving',
         ]
           .filter(Boolean)
           .join(' ');
 
-        return (
-          <span
-            key={unit.id}
-            className={unitClassName}
-            style={{
-              left: `${currentX}px`,
-              top: `${currentY}px`,
-              transform: `translate(-50%, -50%) rotate(${rotationDeg}deg)`,
-              ...(sprite != null ? { backgroundImage: `url(${sprite})` } : {}),
-            }}
-            title={unit.type.name}
-          />
-        );
+        const commonProps = {
+          className: unitClassName,
+          style: {
+            left: `${currentX}px`,
+            top: `${currentY}px`,
+            transform: `translate(-50%, -50%) rotate(${rotationDeg}deg)`,
+            ...(sprite != null ? { backgroundImage: `url(${sprite})` } : {}),
+          },
+          title: unit.type.name,
+          'aria-label': unit.type.name,
+          'aria-pressed': selectable ? isSelected : undefined,
+        };
+
+        if (selectable) {
+          return (
+            <button
+              key={unit.id}
+              type="button"
+              {...commonProps}
+              onClick={(event) => {
+                event.stopPropagation();
+                onUnitSelect?.(unit);
+              }}
+            />
+          );
+        }
+
+        return <span key={unit.id} {...commonProps} />;
       })}
     </div>
   );

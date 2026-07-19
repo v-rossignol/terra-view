@@ -108,13 +108,19 @@ Terra View consumes workspace packages from `packages/` — see [packages/AGENTS
 
 | Package | Used for |
 | ------- | -------- |
-| `@infinity/shared-config` | Hex layout dimensions (`PLANET_HEX_LAYOUT_WIDTH/HEIGHT`), terrain resource definitions, color palette, game constants |
+| `@infinity/shared-config` | Hex layout, building zones, terrain resources, socket event names, game constants |
+| `@infinity/shared-utils` | Build placement, cargo/extraction math, garage helpers, hex-local geometry |
+| `@infinity/shared-types` | Unit catalog types (`BuildableUnitType`, `UnitTypeDefinition`, recipes) |
+| `@infinity/shared-ui` | Shared HUD widgets (`CargoGauge`, `CargoPanel`, `BuildableUnitsPanel`, `GaragePanel`) |
 
 Before running `npm run dev` or `npm run build`, ensure consumed packages are built:
 
 ```bash
 # from the monorepo root
 cd packages/shared-config && npm run build
+cd ../shared-utils && npm run build
+cd ../shared-types && npm run build
+cd ../shared-ui && npm run build
 ```
 
 When adding a new `@infinity/*` import, add the package to `dependencies` in `package.json` (workspace resolution handles the path) and rebuild the package first.

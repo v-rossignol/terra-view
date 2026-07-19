@@ -1,43 +1,85 @@
 import { describe, expect, it } from 'vitest';
 import {
-  clientPointToHexLocalPosition,
-  hexLocalPositionToPercent,
-} from '@utils/hexLocalPosition';
+  clientPointToHexLocalAt,
+  resolveClusterHexClick,
+  type ClusterHexCell,
+} from '../../src/utils/hexLocalPosition';
 
-function mockCellElement(rect: DOMRect): HTMLElement {
-  return {
-    getBoundingClientRect: () => rect,
-  } as HTMLElement;
-}
+const containerRect = { left: 100, top: 50 };
 
-describe('hexLocalPosition', () => {
-  it('maps the cell center to normalized coordinates', () => {
-    const cell = mockCellElement(new DOMRect(100, 200, 200, 160));
+const focusCell: ClusterHexCell = {
+  cellCoords: { q: 2, r: 3 },
+  isFocus: true,
+  left: 300,
+  top: 200,
+  hexUnits: [],
+  isMoveTarget: false,
+  isNeighborClickable: false,
+};
 
-    expect(clientPointToHexLocalPosition(cell, 200, 280)).toEqual({ x: 0.5, y: 0.5 });
+const neighborCell: ClusterHexCell = {
+  cellCoords: { q: 2, r: 4 },
+  isFocus: false,
+  left: 300,
+  top: 320,
+  hexUnits: [],
+  isMoveTarget: false,
+  isNeighborClickable: true,
+};
+
+describe('resolveClusterHexClick', () => {
+  it('prefers a neighbor over focus when both hex polygons contain the point', () => {
+    const hexWidth = 200;
+    const hexHeight = 160;
+    const clientX = containerRect.left + focusCell.left + hexWidth * 0.5;
+    const clientY = containerRect.top + focusCell.top + hexHeight * 0.88;
+
+    expect(clientPointToHexLocalAt(
+      focusCell.left,
+      focusCell.top,
+      hexWidth,
+      hexHeight,
+      containerRect,
+      clientX,
+      clientY,
+    )).not.toBeNull();
+    expect(clientPointToHexLocalAt(
+      neighborCell.left,
+      neighborCell.top,
+      hexWidth,
+      hexHeight,
+      containerRect,
+      clientX,
+      clientY,
+    )).not.toBeNull();
+
+    const resolved = resolveClusterHexClick(
+      [focusCell, neighborCell],
+      hexWidth,
+      hexHeight,
+      containerRect,
+      clientX,
+      clientY,
+    );
+
+    expect(resolved?.cell).toEqual(neighborCell);
   });
 
-  it('returns null for clicks outside the hex polygon', () => {
-    const cell = mockCellElement(new DOMRect(0, 0, 100, 100));
+  it('resolves the focus hex when the point is only inside the focus polygon', () => {
+    const hexWidth = 200;
+    const hexHeight = 160;
+    const clientX = containerRect.left + focusCell.left + hexWidth * 0.5;
+    const clientY = containerRect.top + focusCell.top + hexHeight * 0.5;
 
-    expect(clientPointToHexLocalPosition(cell, 5, 5)).toBeNull();
-    expect(clientPointToHexLocalPosition(cell, 95, 5)).toBeNull();
-  });
+    const resolved = resolveClusterHexClick(
+      [focusCell, neighborCell],
+      hexWidth,
+      hexHeight,
+      containerRect,
+      clientX,
+      clientY,
+    );
 
-  it('accepts clicks inside the hex polygon near the center', () => {
-    const cell = mockCellElement(new DOMRect(0, 0, 100, 100));
-
-    const position = clientPointToHexLocalPosition(cell, 50, 50);
-
-    expect(position).not.toBeNull();
-    expect(position?.x).toBeCloseTo(0.5);
-    expect(position?.y).toBeCloseTo(0.5);
-  });
-
-  it('converts local position to percentage CSS values', () => {
-    expect(hexLocalPositionToPercent({ x: 0.25, y: 0.75 })).toEqual({
-      left: '25%',
-      top: '75%',
-    });
+    expect(resolved?.cell).toEqual(focusCell);
   });
 });

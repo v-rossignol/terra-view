@@ -26,3 +26,21 @@ export function getExtractableBiomeResources(
     isResourceTypeAllowed([...extractionTypes], resource.id),
   );
 }
+
+export function getExtractableBiomeResourcesForBiomes(
+  biomes: readonly BiomeType[],
+  extractionTypes: readonly string[],
+): BiomeResourceEntry[] {
+  const byId = new Map<string, BiomeResourceEntry>();
+
+  for (const biome of biomes) {
+    for (const resource of getExtractableBiomeResources(biome, extractionTypes)) {
+      const existing = byId.get(resource.id);
+      if (existing == null || resource.quantity > existing.quantity) {
+        byId.set(resource.id, resource);
+      }
+    }
+  }
+
+  return [...byId.values()].sort((left, right) => left.name.localeCompare(right.name));
+}

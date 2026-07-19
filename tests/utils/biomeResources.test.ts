@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   getExtractableBiomeResources,
+  getExtractableBiomeResourcesForBiomes,
   getPermanentBiomeResources,
 } from '../../src/utils/biomeResources';
 
@@ -24,5 +25,17 @@ describe('biomeResources', () => {
     const resources = getExtractableBiomeResources('forest', ['wood']);
 
     expect(resources).toEqual([{ id: 'wood', name: 'Wood', quantity: 50 }]);
+  });
+
+  it('merges resources across biomes and keeps the highest quantity per id', () => {
+    const resources = getExtractableBiomeResourcesForBiomes(['forest', 'ocean'], [
+      'food',
+      'salt-water',
+    ]);
+
+    expect(resources).toEqual([
+      { id: 'food', name: 'Food', quantity: 30 },
+      { id: 'salt-water', name: 'Salt water', quantity: 100 },
+    ]);
   });
 });

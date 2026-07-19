@@ -217,6 +217,18 @@
   overflow: hidden;
 }
 
+.hex-grid-viewport--focus .hex-grid__cell {
+  pointer-events: none;
+}
+
+.hex-grid-viewport--focus .hex-grid__cell-layer {
+  pointer-events: none;
+}
+
+.hex-grid-viewport--focus .hex-grid__cell-layer .hex-grid__unit:not(.hex-grid__unit--selectable) {
+  pointer-events: none;
+}
+
 .hex-grid--focus-cluster {
   flex-shrink: 0;
 }
@@ -430,10 +442,22 @@
   z-index: 5;
 }
 
+.hex-grid__moving-overlay--selectable {
+  z-index: 10;
+}
+
+.hex-grid__moving-overlay--selectable .hex-grid__unit--overlay.hex-grid__unit--selectable {
+  pointer-events: auto;
+  cursor: pointer;
+  appearance: none;
+  border: none;
+}
+
 .hex-grid__moving-paths {
   position: absolute;
   inset: 0;
   overflow: visible;
+  pointer-events: none;
 }
 
 .hex-grid__moving-path {

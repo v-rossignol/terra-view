@@ -1,3 +1,4 @@
+import type { BuildingZoneId } from '@infinity/shared-config';
 import type { HexCoords } from './planet';
 
 export type { HexCoords };
@@ -33,6 +34,8 @@ export interface PlanetLocation {
   id: string;
   hex_coords?: HexCoords;
   position?: Vec2Local;
+  /** Set for immobile building units — authoritative slot within the hex. */
+  buildingZoneId?: BuildingZoneId;
 }
 
 export interface PlayerLocationOnPlanet {

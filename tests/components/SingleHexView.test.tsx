@@ -73,6 +73,64 @@ const sawmillOnNeighborHex: UnitInstance = {
   },
 };
 
+const movingScoutOnFocusHex: UnitInstance = {
+  id: 'scout-1',
+  typeId: 'scout-x1',
+  ownerId: 'player-1',
+  location: {
+    cube: { id: 'cube-1' },
+    starSystem: { id: 'system-1' },
+    planet: {
+      id: 'planet-1',
+      hex_coords: { q: 2, r: 3 },
+      position: { x: 0.2, y: 0.4 },
+    },
+  },
+  status: 'moving',
+  createdAt: '2026-01-01T00:00:00.000Z',
+  updatedAt: '2026-01-01T00:00:00.000Z',
+  metadata: {},
+  cargo: {},
+  garage: {},
+  type: {
+    id: 'scout-x1',
+    name: 'Scout-X1',
+    type: 'vehicule',
+    size: 'small',
+    mobility: true,
+    speed: 1,
+    environments: ['forest'],
+    rules: [{ range: 'hexagon', value: 1 }],
+    capabilities: {},
+    description: null,
+    metadata: {},
+  },
+};
+
+function clickClusterAtHexLocal(
+  container: HTMLElement,
+  q: number,
+  r: number,
+  local: { x: number; y: number },
+): void {
+  const cluster = container.querySelector('.hex-grid--focus-cluster') as HTMLElement;
+  const cell = container.querySelector(`.hex-grid__cell[data-q="${q}"][data-r="${r}"]`) as HTMLElement;
+  const cellLeft = Number.parseFloat(cell.style.left);
+  const cellTop = Number.parseFloat(cell.style.top);
+  const hexWidth = Number.parseFloat(cluster.style.getPropertyValue('--hex-width'));
+  const hexHeight = Number.parseFloat(cluster.style.getPropertyValue('--hex-height'));
+
+  Object.defineProperty(cluster, 'getBoundingClientRect', {
+    configurable: true,
+    value: () => new DOMRect(0, 0, 800, 600),
+  });
+
+  fireEvent.click(cluster, {
+    clientX: cellLeft + hexWidth * local.x,
+    clientY: cellTop + hexHeight * local.y,
+  });
+}
+
 describe('SingleHexView move mode', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
@@ -95,13 +153,7 @@ describe('SingleHexView move mode', () => {
       />,
     );
 
-    const focusCell = container.querySelector('.hex-grid__cell[data-q="2"][data-r="3"]') as HTMLElement;
-    Object.defineProperty(focusCell, 'getBoundingClientRect', {
-      configurable: true,
-      value: () => new DOMRect(100, 100, 200, 160),
-    });
-
-    fireEvent.click(focusCell, { clientX: 200, clientY: 180 });
+    clickClusterAtHexLocal(container, 2, 3, { x: 0.5, y: 0.5 });
 
     expect(onMoveDestinationSelect).toHaveBeenCalledWith(
       { q: 2, r: 3 },
@@ -124,13 +176,7 @@ describe('SingleHexView move mode', () => {
       />,
     );
 
-    const focusCell = container.querySelector('.hex-grid__cell[data-q="2"][data-r="3"]') as HTMLElement;
-    Object.defineProperty(focusCell, 'getBoundingClientRect', {
-      configurable: true,
-      value: () => new DOMRect(100, 100, 200, 160),
-    });
-
-    fireEvent.click(focusCell, { clientX: 200, clientY: 180 });
+    clickClusterAtHexLocal(container, 2, 3, { x: 0.5, y: 0.5 });
 
     expect(onMoveDestinationSelect).not.toHaveBeenCalled();
   });
@@ -150,13 +196,7 @@ describe('SingleHexView move mode', () => {
       />,
     );
 
-    const focusCell = container.querySelector('.hex-grid__cell[data-q="2"][data-r="3"]') as HTMLElement;
-    Object.defineProperty(focusCell, 'getBoundingClientRect', {
-      configurable: true,
-      value: () => new DOMRect(100, 100, 200, 160),
-    });
-
-    fireEvent.click(focusCell, { clientX: 150, clientY: 180 });
+    clickClusterAtHexLocal(container, 2, 3, { x: 0.15, y: 0.5 });
 
     expect(onMoveDestinationSelect).toHaveBeenCalledWith(
       { q: 2, r: 3 },
@@ -181,13 +221,7 @@ describe('SingleHexView move mode', () => {
       />,
     );
 
-    const neighborCell = container.querySelector('.hex-grid__cell[data-q="2"][data-r="4"]') as HTMLElement;
-    Object.defineProperty(neighborCell, 'getBoundingClientRect', {
-      configurable: true,
-      value: () => new DOMRect(300, 100, 200, 160),
-    });
-
-    fireEvent.click(neighborCell, { clientX: 400, clientY: 180 });
+    clickClusterAtHexLocal(container, 2, 4, { x: 0.5, y: 0.5 });
 
     expect(onNeighborClick).not.toHaveBeenCalled();
   });
@@ -345,6 +379,26 @@ describe('SingleHexView move mode', () => {
     expect(focusCell?.querySelector('.hex-grid__construction-progress')).toHaveTextContent(/\d+%/);
   });
 
+  it('calls onNeighborClick when clicking a neighbor hit layer over the focus bbox', () => {
+    const onNeighborClick = vi.fn();
+
+    const { container } = render(
+      <SingleHexView
+        hex={focusHex}
+        radius={10}
+        neighbors={[neighborHex]}
+        planetUnits={[sawmillOnFocusHex]}
+        onNeighborClick={onNeighborClick}
+      />,
+    );
+
+    expect(container.querySelector('.hex-grid__cell--neighbor.hex-grid__cell--clickable')).toBeInTheDocument();
+
+    clickClusterAtHexLocal(container, 2, 4, { x: 0.5, y: 0.88 });
+
+    expect(onNeighborClick).toHaveBeenCalledWith({ q: 2, r: 4 });
+  });
+
   it('calls onNeighborUnitSelect when clicking a unit on a neighbor hex', () => {
     const onNeighborUnitSelect = vi.fn();
 
@@ -366,5 +420,45 @@ describe('SingleHexView move mode', () => {
     fireEvent.click(unitButton!);
 
     expect(onNeighborUnitSelect).toHaveBeenCalledWith({ q: 2, r: 4 }, sawmillOnNeighborHex);
+  });
+
+  it('calls onUnitSelect when clicking a moving vehicule overlay marker', () => {
+    const onUnitSelect = vi.fn();
+    const nowMs = Date.now();
+
+    const { container } = render(
+      <SingleHexView
+        hex={focusHex}
+        radius={10}
+        neighbors={[neighborHex]}
+        planetUnits={[movingScoutOnFocusHex]}
+        movementTracks={{
+          'scout-1': {
+            startAt: new Date(nowMs - 5_000).toISOString(),
+            arrivalAt: new Date(nowMs + 5_000).toISOString(),
+            origin: {
+              hex: { q: 2, r: 3 },
+              position: { x: 0.2, y: 0.4 },
+            },
+            destination: {
+              hex: { q: 2, r: 4 },
+              position: { x: 0.8, y: 0.6 },
+            },
+          },
+        }}
+        onUnitSelect={onUnitSelect}
+      />,
+    );
+
+    expect(container.querySelector('.hex-grid__moving-overlay--selectable')).toBeInTheDocument();
+
+    const movingUnitButton = container.querySelector(
+      '.hex-grid__moving-overlay .hex-grid__unit--selectable',
+    );
+
+    expect(movingUnitButton).toBeInTheDocument();
+    fireEvent.click(movingUnitButton!);
+
+    expect(onUnitSelect).toHaveBeenCalledWith(movingScoutOnFocusHex);
   });
 });

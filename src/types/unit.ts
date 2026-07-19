@@ -1,7 +1,9 @@
 import type { HexCoords, Location, Vec2Local } from './player';
 
 export { UNIT_INSTANCE_STATUSES } from '@infinity/shared-config';
-export type { UnitCategory, UnitInstanceStatus, UnitSize } from '@infinity/shared-config';
+export type { UnitCategory, UnitSize } from '@infinity/shared-config';
+import type { UnitInstanceStatus } from '@infinity/shared-config';
+export type { UnitInstanceStatus };
 export type { UnitCargo } from '@infinity/shared-utils';
 export type {
   BuildableUnitType,

@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { computeExtractionYieldPerTick } from '@infinity/shared-utils';
 import type { BiomeType } from '../../types/planet';
 import type { UnitInstance } from '../../types/unit';
-import { getExtractableBiomeResources } from '../../utils/biomeResources';
+import { getExtractableBiomeResourcesForBiomes } from '../../utils/biomeResources';
 
 const overlayStyle: React.CSSProperties = {
   position: 'fixed',
@@ -118,7 +118,7 @@ const errorStyle: React.CSSProperties = {
 
 export interface UnitExtractionOverlayProps {
   unit: UnitInstance | null;
-  biome: BiomeType | null;
+  biomes: BiomeType[];
   extractError?: string | null;
   pendingResourceId?: string | null;
   onClose: () => void;
@@ -135,7 +135,7 @@ function getExtractionSpeed(unit: UnitInstance): number {
 
 export function UnitExtractionOverlay({
   unit,
-  biome,
+  biomes,
   extractError = null,
   pendingResourceId = null,
   onClose,
@@ -152,12 +152,13 @@ export function UnitExtractionOverlay({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [onClose]);
 
-  if (unit == null || biome == null) {
+  if (unit == null || biomes.length === 0) {
     return null;
   }
 
-  const resources = getExtractableBiomeResources(biome, getExtractionTypes(unit));
+  const resources = getExtractableBiomeResourcesForBiomes(biomes, getExtractionTypes(unit));
   const extractionSpeed = getExtractionSpeed(unit);
+  const biomeLabel = biomes.join(', ');
 
   return (
     <div
@@ -171,10 +172,11 @@ export function UnitExtractionOverlay({
         <aside style={panelStyle}>
           <p style={titleStyle}>{unit.type.name} - Extraction</p>
           <p style={metaStyle}>
-            Biome: <strong style={{ color: '#e0e0e0' }}>{biome}</strong>
+            Biome{biomes.length > 1 ? 's' : ''}:{' '}
+            <strong style={{ color: '#e0e0e0' }}>{biomeLabel}</strong>
           </p>
           {resources.length === 0 ? (
-            <p style={mutedStyle}>No extractable resources in this biome.</p>
+            <p style={mutedStyle}>No extractable resources in these biomes.</p>
           ) : (
             <ul style={listStyle}>
               {resources.map((resource) => {

@@ -11,6 +11,7 @@ import { getErrorMessage } from '../utils/helpers';
 import { isUnauthorizedError } from '../utils/authErrors';
 import { isHexInBounds, parseHexCoord } from '../utils/hexCoords';
 import { findVisualNeighborHexagons } from '../utils/planetGrid';
+import { buildHexResourcesByCoords, type HexResourcesByCoords } from '../utils/unitExtraction';
 
 export type PlanetHexStatus = 'loading' | 'ready' | 'error' | 'unauthorized';
 
@@ -22,6 +23,7 @@ export interface PlanetHexState {
   hex: PlanetHexagon | null;
   neighbors: PlanetHexagon[];
   hexResources: PlanetHexResources | null;
+  hexResourcesByCoords: HexResourcesByCoords;
   playerId: string | null;
   playerName: string | null;
   starName: string | null;
@@ -37,6 +39,7 @@ const emptyState = {
   hex: null as PlanetHexagon | null,
   neighbors: [] as PlanetHexagon[],
   hexResources: null as PlanetHexResources | null,
+  hexResourcesByCoords: {} as HexResourcesByCoords,
   playerId: null as string | null,
   playerName: null as string | null,
   starName: null as string | null,
@@ -88,6 +91,7 @@ export function usePlanetHex(
         hex: null,
         neighbors: [],
         hexResources: null,
+        hexResourcesByCoords: {},
         playerId: prev.playerId,
         playerName: prev.playerName,
         starName: prev.starName,
@@ -114,6 +118,7 @@ export function usePlanetHex(
             hex: null,
             neighbors: [],
             hexResources: null,
+        hexResourcesByCoords: {},
             playerId: playerSession?.playerId ?? null,
             playerName: playerSession?.playerName ?? null,
             starName: null,
@@ -136,6 +141,7 @@ export function usePlanetHex(
             hex: null,
             neighbors: [],
             hexResources: null,
+        hexResourcesByCoords: {},
             playerId: playerSession?.playerId ?? null,
             playerName: playerSession?.playerName ?? null,
             starName: null,
@@ -152,14 +158,24 @@ export function usePlanetHex(
           planet.radius,
         );
 
-        const [hexResources, planetUnits, starSystem, canEnter] = await Promise.all([
-          resourceService
-            .getPlanetHexResources(trimmedPlanetId, q, r)
-            .catch(() => null),
+        const resourceCoords = [
+          { q, r },
+          ...neighbors.map((neighbor) => neighbor.coordinates),
+        ];
+        const [hexResourceResults, planetUnits, starSystem, canEnter] = await Promise.all([
+          Promise.all(
+            resourceCoords.map(({ q: resourceQ, r: resourceR }) =>
+              resourceService
+                .getPlanetHexResources(trimmedPlanetId, resourceQ, resourceR)
+                .catch(() => null),
+            ),
+          ),
           unitService.listPlanetUnits(trimmedPlanetId).catch(() => [] as UnitInstance[]),
           starSystemService.getStarSystem(planet.starSystemId).catch(() => null),
           playerService.canEnterStarSystem(planet.starSystemId).catch(() => ({ canEnter: false })),
         ]);
+        const hexResources = hexResourceResults[0] ?? null;
+        const hexResourcesByCoords = buildHexResourcesByCoords(hexResourceResults);
 
         if (cancelled) {
           return;
@@ -173,6 +189,7 @@ export function usePlanetHex(
           hex,
           neighbors,
           hexResources,
+          hexResourcesByCoords,
           playerId: playerSession?.playerId ?? null,
           playerName: playerSession?.playerName ?? null,
           starName: starSystem?.name ?? null,

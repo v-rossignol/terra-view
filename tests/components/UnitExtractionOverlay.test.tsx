@@ -42,22 +42,22 @@ const unit: UnitInstance = {
 describe('UnitExtractionOverlay', () => {
   it('renders nothing when unit is null', () => {
     const { container } = render(
-      <UnitExtractionOverlay unit={null} biome="forest" onClose={vi.fn()} />,
+      <UnitExtractionOverlay unit={null} biomes={['forest']} onClose={vi.fn()} />,
     );
 
     expect(container).toBeEmptyDOMElement();
   });
 
-  it('renders nothing when biome is null', () => {
+  it('renders nothing when biomes is empty', () => {
     const { container } = render(
-      <UnitExtractionOverlay unit={unit} biome={null} onClose={vi.fn()} />,
+      <UnitExtractionOverlay unit={unit} biomes={[]} onClose={vi.fn()} />,
     );
 
     expect(container).toBeEmptyDOMElement();
   });
 
   it('lists extractable forest biome resources with yield per tick', () => {
-    render(<UnitExtractionOverlay unit={unit} biome="forest" onClose={vi.fn()} />);
+    render(<UnitExtractionOverlay unit={unit} biomes={['forest']} onClose={vi.fn()} />);
 
     expect(screen.getByRole('dialog', { name: 'Extraction' })).toBeInTheDocument();
     expect(screen.getByText('Scout X1 - Extraction')).toBeInTheDocument();
@@ -66,6 +66,30 @@ describe('UnitExtractionOverlay', () => {
     expect(screen.getByText('250 / t.')).toBeInTheDocument();
     expect(screen.getByText('Food')).toBeInTheDocument();
     expect(screen.getByText('25 / t.')).toBeInTheDocument();
+  });
+
+  it('merges extractable resources from multiple biomes', () => {
+    render(
+      <UnitExtractionOverlay
+        unit={{
+          ...unit,
+          type: {
+            ...unit.type,
+            capabilities: {
+              extraction: { speed: 1, types: ['food', 'salt-water'] },
+            },
+          },
+        }}
+        biomes={['forest', 'ocean']}
+        onClose={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText('forest, ocean')).toBeInTheDocument();
+    expect(screen.getByText('Food')).toBeInTheDocument();
+    expect(screen.getByText('Salt water')).toBeInTheDocument();
+    expect(screen.getByText('30 / t.')).toBeInTheDocument();
+    expect(screen.queryByText('Wood')).not.toBeInTheDocument();
   });
 
   it('filters resources by unit extraction types', () => {
@@ -80,7 +104,7 @@ describe('UnitExtractionOverlay', () => {
             },
           },
         }}
-        biome="forest"
+        biomes={['forest']}
         onClose={vi.fn()}
       />,
     );
@@ -92,7 +116,7 @@ describe('UnitExtractionOverlay', () => {
   it('calls onClose when the close button is clicked', () => {
     const onClose = vi.fn();
 
-    render(<UnitExtractionOverlay unit={unit} biome="forest" onClose={onClose} />);
+    render(<UnitExtractionOverlay unit={unit} biomes={['forest']} onClose={onClose} />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Close' }));
     expect(onClose).toHaveBeenCalledTimes(1);
@@ -104,7 +128,7 @@ describe('UnitExtractionOverlay', () => {
     render(
       <UnitExtractionOverlay
         unit={unit}
-        biome="forest"
+        biomes={['forest']}
         onClose={vi.fn()}
         onStartExtract={onStartExtract}
       />,
@@ -118,7 +142,7 @@ describe('UnitExtractionOverlay', () => {
     render(
       <UnitExtractionOverlay
         unit={unit}
-        biome="forest"
+        biomes={['forest']}
         pendingResourceId="wood"
         onClose={vi.fn()}
         onStartExtract={vi.fn()}
@@ -133,7 +157,7 @@ describe('UnitExtractionOverlay', () => {
     render(
       <UnitExtractionOverlay
         unit={unit}
-        biome="forest"
+        biomes={['forest']}
         extractError="Unit cargo is already full"
         onClose={vi.fn()}
       />,
@@ -145,7 +169,7 @@ describe('UnitExtractionOverlay', () => {
   it('calls onClose when Escape is pressed', () => {
     const onClose = vi.fn();
 
-    render(<UnitExtractionOverlay unit={unit} biome="forest" onClose={onClose} />);
+    render(<UnitExtractionOverlay unit={unit} biomes={['forest']} onClose={onClose} />);
 
     fireEvent.keyDown(window, { key: 'Escape' });
     expect(onClose).toHaveBeenCalledTimes(1);

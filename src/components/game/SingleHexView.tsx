@@ -8,7 +8,7 @@ import { useAnimationNow } from '../../hooks/useAnimationNow';
 import { useContainerSize } from '../../hooks/useContainerSize';
 import { getBiomeColor } from '../../utils/biomeColors';
 import { getBiomeTileset } from '../../utils/biomeTilesets';
-import { clientPointToHexLocalPosition } from '../../utils/hexLocalPosition';
+import { resolveClusterHexClick } from '../../utils/hexLocalPosition';
 import { isPointOnBuildingFootprint } from '../../utils/unitBuildFootprint';
 import { groupUnitsByHex } from '../../utils/unitLocation';
 import { hexCoordsKey } from '../../utils/unitMovement';
@@ -227,34 +227,40 @@ export function SingleHexView({
     ['--hex-height' as string]: `${layout.hexHeight}px`,
   };
 
-  const viewportClassName = [
-    'hex-grid-viewport',
-    'hex-grid-viewport--focus',
-    moveModeActive ? 'hex-grid-viewport--move-mode' : '',
-    buildModeActive ? 'hex-grid-viewport--build-mode' : '',
-  ]
-    .filter(Boolean)
-    .join(' ');
+  const handleClusterClick = useCallback(
+    (event: MouseEvent<HTMLDivElement>) => {
+      const resolved = resolveClusterHexClick(
+        cellRenderData,
+        layout.hexWidth,
+        layout.hexHeight,
+        event.currentTarget.getBoundingClientRect(),
+        event.clientX,
+        event.clientY,
+      );
 
-  const handleCellClick = (
-    event: MouseEvent<HTMLDivElement>,
-    cellCoords: HexCoords,
-    hexUnits: UnitInstance[],
-    isMoveTarget: boolean,
-    isFocus: boolean,
-  ) => {
-    if (moveModeActive && isMoveTarget) {
-      const position = clientPointToHexLocalPosition(event.currentTarget, event.clientX, event.clientY);
-      if (position != null && !isPointOnBuildingFootprint(position, hexUnits)) {
-        onMoveDestinationSelect?.(cellCoords, position);
+      if (resolved == null) {
+        return;
       }
-      return;
-    }
 
-    if (!isFocus && onNeighborClick != null) {
-      onNeighborClick(cellCoords);
-    }
-  };
+      const { cell, position } = resolved;
+
+      if (moveModeActive) {
+        if (!cell.isMoveTarget) {
+          return;
+        }
+
+        if (!isPointOnBuildingFootprint(position, cell.hexUnits)) {
+          onMoveDestinationSelect?.(cell.cellCoords, position);
+        }
+        return;
+      }
+
+      if (!cell.isFocus && cell.isNeighborClickable && onNeighborClick != null) {
+        onNeighborClick(cell.cellCoords);
+      }
+    },
+    [cellRenderData, layout.hexWidth, layout.hexHeight, moveModeActive, onMoveDestinationSelect, onNeighborClick],
+  );
 
   const handleUnitMarkerSelect = useCallback(
     (cellCoords: HexCoords, isFocus: boolean, unit: UnitInstance) => {
@@ -280,10 +286,23 @@ export function SingleHexView({
   const unitSelectionEnabled =
     !moveModeActive && !buildModeActive && (onUnitSelect != null || onNeighborUnitSelect != null);
 
+  const viewportClassName = [
+    'hex-grid-viewport',
+    'hex-grid-viewport--focus',
+    moveModeActive ? 'hex-grid-viewport--move-mode' : '',
+    buildModeActive ? 'hex-grid-viewport--build-mode' : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
+
   return (
     <div ref={ref} className={viewportClassName} style={viewportStyle}>
       {isReady ? (
-        <div className="hex-grid hex-grid--focus-cluster" style={clusterStyle}>
+        <div
+          className="hex-grid hex-grid--focus-cluster"
+          style={clusterStyle}
+          onClick={handleClusterClick}
+        >
           {cellRenderData.map(({ cell, cellCoords, left, top, surfaceHostClassName }) => {
               const { q, r } = cellCoords;
 
@@ -315,8 +334,6 @@ export function SingleHexView({
               top,
               hexUnits,
               hexConstructionSites,
-              isMoveTarget,
-              isNeighborClickable,
               showMarker,
               cellClassName,
             }) => {
@@ -329,22 +346,6 @@ export function SingleHexView({
                   style={{ left, top }}
                   data-q={q}
                   data-r={r}
-                  onClick={(event) =>
-                    handleCellClick(event, cellCoords, hexUnits, isMoveTarget, isFocus)
-                  }
-                  onKeyDown={
-                    isNeighborClickable
-                      ? (event) => {
-                          if (event.key === 'Enter' || event.key === ' ') {
-                            event.preventDefault();
-                            onNeighborClick?.(cellCoords);
-                          }
-                        }
-                      : undefined
-                  }
-                  role={isNeighborClickable ? 'button' : undefined}
-                  tabIndex={isNeighborClickable ? 0 : undefined}
-                  aria-label={!isFocus ? `Neighbor hex (${q}, ${r})` : undefined}
                 >
                   <div className="hex-grid__cell-layer">
                     <HexUnitMarkers
@@ -395,6 +396,8 @@ export function SingleHexView({
             layout={layout}
             nowMs={nowMs}
             selectedUnitId={selectedUnitId}
+            selectable={unitSelectionEnabled}
+            onUnitSelect={onUnitSelect}
           />
         </div>
       ) : null}

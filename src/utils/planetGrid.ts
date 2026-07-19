@@ -1,10 +1,17 @@
 import type { HexCoords, PlanetHexagon } from '../types/planet';
 import {
+  BUILDING_ZONES_BY_ID,
+  type BuildingZoneSide,
+} from '@infinity/shared-config';
+import {
   DEFAULT_HEX_LAYOUT,
   getHexCenterDistance,
   getMaxAdjacentHexCenterDistance,
+  getToroidalHexScreenOffset,
   type HexLayoutConfig,
 } from './hexLayout';
+
+const HEX_LOCAL_CENTER = { x: 0.5, y: 0.5 };
 
 /** Toroidal grid height — matches server `getPlanetGridHeight`. */
 export function getPlanetGridHeight(radius: number): number {
@@ -45,6 +52,52 @@ export function getHexNeighbors(
     .sort((left, right) => left.distance - right.distance)
     .slice(0, 6)
     .map(({ coords }) => coords);
+}
+
+/** Neighbor hex across a side building zone — matches server `getNeighborForSideZone`. */
+export function getNeighborForSideZone(
+  q: number,
+  r: number,
+  side: BuildingZoneSide,
+  radius: number,
+  layout: HexLayoutConfig = DEFAULT_HEX_LAYOUT,
+): HexCoords | null {
+  const zone = BUILDING_ZONES_BY_ID[side];
+  const sideVector = {
+    x: zone.center.x - HEX_LOCAL_CENTER.x,
+    y: zone.center.y - HEX_LOCAL_CENTER.y,
+  };
+  const sideLength = Math.hypot(sideVector.x, sideVector.y);
+  if (sideLength === 0) {
+    return null;
+  }
+
+  const sideDirection = {
+    x: sideVector.x / sideLength,
+    y: sideVector.y / sideLength,
+  };
+
+  const focus = { q, r };
+  let bestNeighbor: HexCoords | null = null;
+  let bestAlignment = Number.NEGATIVE_INFINITY;
+
+  for (const neighbor of getHexNeighbors(q, r, radius, layout)) {
+    const offset = getToroidalHexScreenOffset(focus, neighbor, layout, radius);
+    const offsetLength = Math.hypot(offset.x, offset.y);
+    if (offsetLength === 0) {
+      continue;
+    }
+
+    const alignment =
+      (sideDirection.x * offset.x + sideDirection.y * offset.y) / offsetLength;
+
+    if (alignment > bestAlignment) {
+      bestAlignment = alignment;
+      bestNeighbor = neighbor;
+    }
+  }
+
+  return bestNeighbor;
 }
 
 export function findNeighborHexagons(

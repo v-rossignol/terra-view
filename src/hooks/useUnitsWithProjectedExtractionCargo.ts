@@ -1,12 +1,14 @@
 import { useMemo } from 'react';
-import type { PlanetHexResources } from '../types/resource';
 import type { UnitInstance } from '../types/unit';
-import { withProjectedExtractionCargo } from '../utils/unitExtraction';
+import {
+  type HexResourcesByCoords,
+  withProjectedExtractionCargo,
+} from '../utils/unitExtraction';
 import { useAnimationNow } from './useAnimationNow';
 
 export function useUnitsWithProjectedExtractionCargo(
   units: UnitInstance[],
-  hexResources: PlanetHexResources | null,
+  hexResourcesByCoords: HexResourcesByCoords | null,
 ): UnitInstance[] {
   const hasExtractingUnits = useMemo(
     () => units.some((unit) => unit.status === 'extracting'),
@@ -19,6 +21,8 @@ export function useUnitsWithProjectedExtractionCargo(
       return units;
     }
 
-    return units.map((unit) => withProjectedExtractionCargo(unit, hexResources, nowMs));
-  }, [units, hexResources, nowMs, hasExtractingUnits]);
+    return units.map((unit) =>
+      withProjectedExtractionCargo(unit, hexResourcesByCoords, nowMs),
+    );
+  }, [units, hexResourcesByCoords, nowMs, hasExtractingUnits]);
 }
