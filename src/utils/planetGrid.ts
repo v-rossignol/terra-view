@@ -54,6 +54,40 @@ export function getHexNeighbors(
     .map(({ coords }) => coords);
 }
 
+function hexCoordsKey(coords: HexCoords): string {
+  return `${coords.q},${coords.r}`;
+}
+
+/**
+ * Hexes two steps from `(q, r)` on the rendered toroidal surface (neighbors of neighbors).
+ * Excludes the focus hex and its direct neighbors.
+ */
+export function getHexOuterNeighbors(
+  q: number,
+  r: number,
+  radius: number,
+  layout: HexLayoutConfig = DEFAULT_HEX_LAYOUT,
+): HexCoords[] {
+  const excluded = new Set<string>([hexCoordsKey({ q, r })]);
+  const ring1 = getHexNeighbors(q, r, radius, layout);
+
+  for (const neighbor of ring1) {
+    excluded.add(hexCoordsKey(neighbor));
+  }
+
+  const ring2 = new Map<string, HexCoords>();
+  for (const neighbor of ring1) {
+    for (const outer of getHexNeighbors(neighbor.q, neighbor.r, radius, layout)) {
+      const key = hexCoordsKey(outer);
+      if (!excluded.has(key)) {
+        ring2.set(key, outer);
+      }
+    }
+  }
+
+  return [...ring2.values()];
+}
+
 /** Neighbor hex across a side building zone — matches server `getNeighborForSideZone`. */
 export function getNeighborForSideZone(
   q: number,
@@ -130,6 +164,26 @@ export function findVisualNeighborHexagons(
   }
 
   return getHexNeighbors(focus.q, focus.r, radius, layout)
+    .map((coords) =>
+      hexagons.find(
+        (cell) => cell.coordinates.q === coords.q && cell.coordinates.r === coords.r,
+      ),
+    )
+    .filter((cell): cell is PlanetHexagon => cell != null);
+}
+
+/** Hexes two steps from the focus cell whose rendered tiles may peek at the viewport edge. */
+export function findVisualOuterNeighborHexagons(
+  hexagons: PlanetHexagon[] | undefined,
+  focus: HexCoords,
+  radius: number,
+  layout: HexLayoutConfig = DEFAULT_HEX_LAYOUT,
+): PlanetHexagon[] {
+  if (hexagons == null) {
+    return [];
+  }
+
+  return getHexOuterNeighbors(focus.q, focus.r, radius, layout)
     .map((coords) =>
       hexagons.find(
         (cell) => cell.coordinates.q === coords.q && cell.coordinates.r === coords.r,

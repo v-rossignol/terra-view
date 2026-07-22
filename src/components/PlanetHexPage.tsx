@@ -25,6 +25,7 @@ import { getParkErrorMessage, getUnparkErrorMessage } from '../utils/parkErrors'
 import { getTransferCargoErrorMessage } from '../utils/transferErrors';
 import { findParkableGarages } from '../utils/unitParking';
 import { SingleHexView, type MoveDestination } from './game/SingleHexView';
+import type { MapZoomLevel } from '../types/map';
 import { ClientHeader } from './ui/ClientHeader';
 import { HexResourcesPanel } from './ui/HexResourcesPanel';
 import { UnitPanel } from './ui/UnitPanel';
@@ -105,6 +106,7 @@ export function PlanetHexPage() {
     coords,
     hex,
     neighbors,
+    outerNeighbors,
     hexResources,
     hexResourcesByCoords,
     playerId,
@@ -138,6 +140,7 @@ export function PlanetHexPage() {
   const [pendingUnparkVehicleId, setPendingUnparkVehicleId] = useState<string | null>(null);
   const [pendingTransferResourceId, setPendingTransferResourceId] = useState<string | null>(null);
   const [movementTracks, setMovementTracks] = useState<Record<string, UnitMovementTrack>>({});
+  const [zoomLevel, setZoomLevel] = useState<MapZoomLevel>(1);
   const selectedUnitIdRef = useRef<string | null>(null);
   const handleSocketUnitUpdate = useCallback((payload: UnitUpdatePayload) => {
     if (payload.status !== 'moving') {
@@ -827,6 +830,10 @@ export function PlanetHexPage() {
     };
   }, [garageAreaHovered, garagePanelOpen, selectedUnit, coords]);
 
+  const handleZoomClick = useCallback(() => {
+    setZoomLevel((current) => (current === 1 ? 2 : 1));
+  }, []);
+
   const handleNeighborClick = useCallback(
     (neighborCoords: HexCoords) => {
       if (planetId == null) {
@@ -880,6 +887,8 @@ export function PlanetHexPage() {
         planetTo="/"
         detail={hexDetail}
         status={headerStatus}
+        zoomLevel={zoomLevel}
+        onZoomClick={handleZoomClick}
       />
 
       <main style={status === 'ready' && hex != null ? contentStyle : centeredContentStyle}>
@@ -910,6 +919,8 @@ export function PlanetHexPage() {
               hex={hex}
               radius={planetRadius}
               neighbors={neighbors}
+              outerNeighbors={outerNeighbors}
+              zoomLevel={zoomLevel}
               playerId={playerId ?? undefined}
               planetUnits={displayUnits}
               selectedUnitId={selectedUnitId}

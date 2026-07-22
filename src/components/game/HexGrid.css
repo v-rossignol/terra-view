@@ -217,6 +217,26 @@
   overflow: hidden;
 }
 
+.hex-grid-viewport--zoom-2 .hex-grid__cell-surface-host--neighbor {
+  opacity: 1;
+  filter: none;
+}
+
+.hex-grid-viewport--zoom-2 .hex-grid__cell-surface-host--neighbor:hover {
+  opacity: 1;
+  filter: none;
+}
+
+.hex-grid-viewport--zoom-2 .hex-grid__cell-surface-host--outer {
+  opacity: 0.45;
+  filter: brightness(0.7);
+}
+
+.hex-grid-viewport--zoom-2 .hex-grid__cell-surface-host--outer:hover {
+  opacity: 0.65;
+  filter: brightness(0.85);
+}
+
 .hex-grid-viewport--focus .hex-grid__cell {
   pointer-events: none;
 }

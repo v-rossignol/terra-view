@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import type { MapZoomLevel } from '../../types/map';
 
 interface ClientHeaderProps {
   playerName?: string | null;
@@ -8,6 +9,8 @@ interface ClientHeaderProps {
   planetTo?: string;
   detail?: string | null;
   status?: 'loading' | 'ready' | 'error';
+  zoomLevel?: MapZoomLevel;
+  onZoomClick?: () => void;
 }
 
 const headerStyle: React.CSSProperties = {
@@ -49,13 +52,20 @@ const headerMainStyle: React.CSSProperties = {
   textOverflow: 'ellipsis',
 };
 
-const reloadButtonStyle: React.CSSProperties = {
+const headerActionsStyle: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: '0.5rem',
+  marginLeft: 'auto',
+  flexShrink: 0,
+};
+
+const headerIconButtonStyle: React.CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
   justifyContent: 'center',
   width: '2rem',
   height: '2rem',
-  marginLeft: 'auto',
   padding: 0,
   borderRadius: '4px',
   border: '1px solid #3a3a3a',
@@ -63,6 +73,13 @@ const reloadButtonStyle: React.CSSProperties = {
   color: '#9a9a9a',
   cursor: 'pointer',
   flexShrink: 0,
+};
+
+const zoomButtonStyle: React.CSSProperties = {
+  ...headerIconButtonStyle,
+  fontSize: '0.875rem',
+  fontWeight: 600,
+  fontFamily: 'inherit',
 };
 
 function handleReloadClick(): void {
@@ -77,6 +94,8 @@ export function ClientHeader({
   planetTo,
   detail,
   status = 'ready',
+  zoomLevel,
+  onZoomClick,
 }: ClientHeaderProps) {
   const showContext = status === 'ready' && playerName && planetName;
 
@@ -133,31 +152,44 @@ export function ClientHeader({
           <span style={{ color: '#9a9a9a' }}>Loading…</span>
         ) : null}
       </div>
-      <button
-        type="button"
-        style={reloadButtonStyle}
-        onClick={handleReloadClick}
-        aria-label="Reload page"
-        title="Reload page"
-      >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          width="16"
-          height="16"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          aria-hidden="true"
+      <div style={headerActionsStyle}>
+        {zoomLevel != null && onZoomClick != null ? (
+          <button
+            type="button"
+            style={zoomButtonStyle}
+            onClick={onZoomClick}
+            aria-label={`Zoom level ${zoomLevel}`}
+            title="Zoom level"
+          >
+            {zoomLevel}
+          </button>
+        ) : null}
+        <button
+          type="button"
+          style={headerIconButtonStyle}
+          onClick={handleReloadClick}
+          aria-label="Reload page"
+          title="Reload page"
         >
-          <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
-          <path d="M21 3v5h-5" />
-          <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
-          <path d="M8 16H3v5" />
-        </svg>
-      </button>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
+            <path d="M21 3v5h-5" />
+            <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
+            <path d="M8 16H3v5" />
+          </svg>
+        </button>
+      </div>
     </header>
   );
 }

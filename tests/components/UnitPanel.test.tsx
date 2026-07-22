@@ -157,6 +157,33 @@ describe('UnitPanel', () => {
     expect(screen.queryByRole('button', { name: 'Extraction: speed 5, types *' })).not.toBeInTheDocument();
   });
 
+  it('shows transformation icon with tooltip for units with transformation capability', () => {
+    render(
+      <UnitPanel
+        unit={{
+          ...unit,
+          type: {
+            ...unit.type,
+            name: 'Forge',
+            mobility: false,
+            speed: null,
+            capabilities: {
+              transformation: { speed: 1, types: ['iron-ingot', 'copper-ingot'] },
+            },
+          },
+        }}
+      />,
+    );
+
+    const transformationLabel = 'Transformation: speed 1, types iron-ingot, copper-ingot';
+    const transformationIcon = screen.getByLabelText(transformationLabel);
+
+    expect(transformationIcon).toBeInTheDocument();
+    expect(transformationIcon).toHaveAttribute('title', transformationLabel);
+    expect(transformationIcon.querySelector('img')).toBeInTheDocument();
+    expect(screen.queryByText(transformationLabel)).not.toBeInTheDocument();
+  });
+
   it('shows extraction icon without other action buttons for units with extraction only', () => {
     render(
       <UnitPanel

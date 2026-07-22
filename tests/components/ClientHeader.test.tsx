@@ -107,4 +107,19 @@ describe('ClientHeader', () => {
 
     expect(reload).toHaveBeenCalledTimes(1);
   });
+
+  it('toggles zoom level when the zoom button is clicked', () => {
+    const onZoomClick = vi.fn();
+
+    render(
+      <ClientHeader status="ready" zoomLevel={1} onZoomClick={onZoomClick} />,
+    );
+
+    const zoomButton = screen.getByRole('button', { name: 'Zoom level 1' });
+    expect(zoomButton).toHaveTextContent('1');
+
+    fireEvent.click(zoomButton);
+
+    expect(onZoomClick).toHaveBeenCalledTimes(1);
+  });
 });

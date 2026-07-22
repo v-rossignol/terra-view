@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 import {
   findNeighborHexagons,
   findVisualNeighborHexagons,
+  findVisualOuterNeighborHexagons,
   getHexNeighbors,
+  getHexOuterNeighbors,
   getPlanetGridHeight,
   rollRandomHex,
 } from '@utils/planetGrid';
@@ -83,5 +85,20 @@ describe('planetGrid', () => {
     expect(neighbors).toHaveLength(6);
     expect(coords).toContainEqual({ q: 4, r: 5 });
     expect(coords).not.toContainEqual({ q: 6, r: 5 });
+  });
+
+  it('returns outer neighbors two steps from the focus hex', () => {
+    expect(getHexOuterNeighbors(2, 3, 10)).toContainEqual({ q: 1, r: 2 });
+    expect(getHexOuterNeighbors(2, 3, 10)).not.toContainEqual({ q: 2, r: 3 });
+    expect(getHexOuterNeighbors(2, 3, 10)).not.toContainEqual({ q: 2, r: 4 });
+  });
+
+  it('finds outer neighbor hexagons from planet surface data', () => {
+    const surface = buildSurface(10);
+    const outerNeighbors = findVisualOuterNeighborHexagons(surface, { q: 5, r: 6 }, 10);
+
+    expect(outerNeighbors.length).toBeGreaterThan(0);
+    expect(outerNeighbors.map((cell) => cell.coordinates)).not.toContainEqual({ q: 5, r: 6 });
+    expect(outerNeighbors.map((cell) => cell.coordinates)).not.toContainEqual({ q: 4, r: 5 });
   });
 });

@@ -201,3 +201,91 @@ export function getLayoutScale(
 ): number {
   return config.hexWidth / baseConfig.hexWidth;
 }
+
+export interface FocusClusterPixelBounds {
+  minX: number;
+  minY: number;
+  maxX: number;
+  maxY: number;
+  width: number;
+  height: number;
+}
+
+/** Pixel bounds of a focus hex plus its neighbors, with the focus hex top-left at (0, 0). */
+export function getFocusClusterPixelBounds(
+  focus: { q: number; r: number },
+  neighborCoords: ReadonlyArray<{ q: number; r: number }>,
+  config: HexLayoutConfig = DEFAULT_HEX_LAYOUT,
+  radius?: number,
+): FocusClusterPixelBounds {
+  let minX = 0;
+  let minY = 0;
+  let maxX = config.hexWidth;
+  let maxY = config.hexHeight;
+
+  for (const neighbor of neighborCoords) {
+    const offset = getToroidalHexScreenOffset(focus, neighbor, config, radius);
+    minX = Math.min(minX, offset.x);
+    minY = Math.min(minY, offset.y);
+    maxX = Math.max(maxX, offset.x + config.hexWidth);
+    maxY = Math.max(maxY, offset.y + config.hexHeight);
+  }
+
+  return {
+    minX,
+    minY,
+    maxX,
+    maxY,
+    width: maxX - minX,
+    height: maxY - minY,
+  };
+}
+
+/** Scale a base layout so a focus hex and all neighbors fit inside the given bounds. */
+export function fitFocusClusterLayout(
+  bounds: GridPixelSize,
+  baseConfig: HexLayoutConfig,
+  focus: { q: number; r: number },
+  neighborCoords: ReadonlyArray<{ q: number; r: number }>,
+  radius?: number,
+  padding = 8,
+): HexLayoutConfig {
+  if (bounds.width <= 0 || bounds.height <= 0) {
+    return scaleLayoutConfig(baseConfig, 0);
+  }
+
+  const cluster = getFocusClusterPixelBounds(focus, neighborCoords, baseConfig, radius);
+  if (cluster.width === 0 || cluster.height === 0) {
+    return scaleLayoutConfig(baseConfig, 0);
+  }
+
+  const availableWidth = Math.max(bounds.width - padding * 2, 0);
+  const availableHeight = Math.max(bounds.height - padding * 2, 0);
+  if (availableWidth === 0 || availableHeight === 0) {
+    return scaleLayoutConfig(baseConfig, 0);
+  }
+
+  const scale =
+    Math.min(availableWidth / cluster.width, availableHeight / cluster.height) *
+    FIT_SCALE_MARGIN;
+
+  return scaleLayoutConfig(baseConfig, scale);
+}
+
+/** Top-left position for a focus cluster so the cluster is centered in the viewport. */
+export function getFocusClusterTopLeft(
+  viewport: GridPixelSize,
+  layout: HexLayoutConfig,
+  focus: { q: number; r: number },
+  neighborCoords: ReadonlyArray<{ q: number; r: number }>,
+  radius?: number,
+): ScreenPoint {
+  const cluster = getFocusClusterPixelBounds(focus, neighborCoords, layout, radius);
+  const clusterCenterX = (cluster.minX + cluster.maxX) / 2;
+  const clusterCenterY = (cluster.minY + cluster.maxY) / 2;
+
+  return {
+    x: viewport.width / 2 - clusterCenterX,
+    y: viewport.height / 2 - clusterCenterY,
+  };
+}

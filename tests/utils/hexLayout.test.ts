@@ -2,13 +2,17 @@ import { describe, expect, it } from 'vitest';
 import {
   DEFAULT_HEX_LAYOUT,
   axialToScreen,
+  fitFocusClusterLayout,
   fitLayoutToBounds,
+  getFocusClusterPixelBounds,
+  getFocusClusterTopLeft,
   getGridPixelSize,
   getHexCenterDistance,
   getMaxAdjacentHexCenterDistance,
   getToroidalHexScreenOffset,
   hexVerticalStep,
 } from '@utils/hexLayout';
+import { getHexNeighbors } from '@utils/planetGrid';
 
 describe('hexLayout', () => {
   it('matches documentation/wip/grid/algorithm.js for the reference dimensions', () => {
@@ -74,5 +78,30 @@ describe('hexLayout', () => {
     const offset = getToroidalHexScreenOffset({ q: 5, r: 6 }, { q: 4, r: 5 }, DEFAULT_HEX_LAYOUT, 10);
     expect(offset.x).toBeLessThan(0);
     expect(offset.y).toBeLessThan(0);
+  });
+
+  it('fits a focus hex and its neighbors inside the viewport at zoom level 2', () => {
+    const radius = 10;
+    const focus = { q: 5, r: 6 };
+    const neighbors = getHexNeighbors(focus.q, focus.r, radius, DEFAULT_HEX_LAYOUT);
+    const bounds = { width: 800, height: 600 };
+    const fitted = fitFocusClusterLayout(bounds, DEFAULT_HEX_LAYOUT, focus, neighbors, radius);
+    const cluster = getFocusClusterPixelBounds(focus, neighbors, fitted, radius);
+
+    expect(cluster.width).toBeLessThan(bounds.width);
+    expect(cluster.height).toBeLessThan(bounds.height);
+  });
+
+  it('centers a focus cluster in the viewport', () => {
+    const radius = 10;
+    const focus = { q: 5, r: 6 };
+    const neighbors = getHexNeighbors(focus.q, focus.r, radius, DEFAULT_HEX_LAYOUT);
+    const viewport = { width: 800, height: 600 };
+    const layout = fitFocusClusterLayout(viewport, DEFAULT_HEX_LAYOUT, focus, neighbors, radius);
+    const topLeft = getFocusClusterTopLeft(viewport, layout, focus, neighbors, radius);
+    const cluster = getFocusClusterPixelBounds(focus, neighbors, layout, radius);
+
+    expect(topLeft.x + (cluster.minX + cluster.maxX) / 2).toBeCloseTo(viewport.width / 2);
+    expect(topLeft.y + (cluster.minY + cluster.maxY) / 2).toBeCloseTo(viewport.height / 2);
   });
 });

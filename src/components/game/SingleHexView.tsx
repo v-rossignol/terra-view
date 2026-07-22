@@ -25,12 +25,14 @@ import {
 } from '../../utils/unitBuilding';
 import {
   DEFAULT_HEX_LAYOUT,
+  fitFocusClusterLayout,
+  getFocusClusterTopLeft,
   getToroidalHexScreenOffset,
   type HexLayoutConfig,
 } from '../../utils/hexLayout';
 import './HexGrid.css';
 
-/** Center hex fills this fraction of the viewport; neighbors peek at the edges. */
+import type { MapZoomLevel } from '../../types/map';
 const CENTER_HEX_FILL = 0.85;
 
 export interface MoveDestination {
@@ -47,6 +49,7 @@ export interface SingleHexViewProps {
   hex: PlanetHexagon;
   radius: number;
   neighbors?: PlanetHexagon[];
+  outerNeighbors?: PlanetHexagon[];
   playerId?: string;
   planetUnits?: UnitInstance[];
   selectedUnitId?: string | null;
@@ -64,6 +67,7 @@ export interface SingleHexViewProps {
   onBuildTargetSelect?: (buildingZoneId: BuildingZoneId) => void;
   garageAreaPreview?: GarageAreaPreview | null;
   layout?: HexLayoutConfig;
+  zoomLevel?: MapZoomLevel;
 }
 
 function fitFocusHexLayout(
@@ -105,6 +109,7 @@ export function SingleHexView({
   hex,
   radius,
   neighbors = [],
+  outerNeighbors = [],
   playerId,
   planetUnits = [],
   selectedUnitId = null,
@@ -122,14 +127,38 @@ export function SingleHexView({
   onBuildTargetSelect,
   garageAreaPreview = null,
   layout: baseLayout = DEFAULT_HEX_LAYOUT,
+  zoomLevel = 1,
 }: SingleHexViewProps) {
   const { ref, size } = useContainerSize<HTMLDivElement>();
-  const layout = fitFocusHexLayout(size, baseLayout);
+  const focus = hex.coordinates;
+  const neighborCoords = useMemo(
+    () => neighbors.map((neighbor) => neighbor.coordinates),
+    [neighbors],
+  );
+  const neighborCoordKeys = useMemo(
+    () => new Set(neighbors.map((neighbor) => hexCoordsKey(neighbor.coordinates))),
+    [neighbors],
+  );
+  const outerNeighborCoordKeys = useMemo(
+    () => new Set(outerNeighbors.map((neighbor) => hexCoordsKey(neighbor.coordinates))),
+    [outerNeighbors],
+  );
+  const layout = useMemo(() => {
+    if (zoomLevel === 2) {
+      return fitFocusClusterLayout(size, baseLayout, focus, neighborCoords, radius);
+    }
+
+    return fitFocusHexLayout(size, baseLayout);
+  }, [zoomLevel, size, baseLayout, focus, neighborCoords, radius]);
   const scale = layout.hexWidth / baseLayout.hexWidth;
   const isReady = size.width > 0 && size.height > 0 && scale > 0;
+  const cells = useMemo(() => {
+    if (zoomLevel === 2) {
+      return [hex, ...neighbors, ...outerNeighbors];
+    }
 
-  const focus = hex.coordinates;
-  const cells = useMemo(() => [hex, ...neighbors], [hex, neighbors]);
+    return [hex, ...neighbors];
+  }, [hex, neighbors, outerNeighbors, zoomLevel]);
   const staticUnits = useMemo(
     () => planetUnits.filter((unit) => !isMovingVehicule(unit)),
     [planetUnits],
@@ -153,8 +182,18 @@ export function SingleHexView({
     [validMoveHexes],
   );
 
-  const centerX = size.width / 2 - layout.hexWidth / 2;
-  const centerY = size.height / 2 - layout.hexHeight / 2;
+  const clusterTopLeft = useMemo(() => {
+    if (zoomLevel === 2) {
+      return getFocusClusterTopLeft(size, layout, focus, neighborCoords, radius);
+    }
+
+    return {
+      x: size.width / 2 - layout.hexWidth / 2,
+      y: size.height / 2 - layout.hexHeight / 2,
+    };
+  }, [zoomLevel, size, layout, focus, neighborCoords, radius]);
+  const centerX = clusterTopLeft.x;
+  const centerY = clusterTopLeft.y;
 
   const cellRenderData = useMemo(
     () =>
@@ -162,6 +201,8 @@ export function SingleHexView({
         const { q, r } = cell.coordinates;
         const cellCoords = { q, r };
         const isFocus = q === focus.q && r === focus.r;
+        const isOuter = !isFocus && outerNeighborCoordKeys.has(hexCoordsKey(cellCoords));
+        const isNeighbor = !isFocus && neighborCoordKeys.has(hexCoordsKey(cellCoords));
         const offset = isFocus
           ? { x: 0, y: 0 }
           : getToroidalHexScreenOffset(focus, cellCoords, layout, radius);
@@ -170,6 +211,7 @@ export function SingleHexView({
           cell,
           cellCoords,
           isFocus,
+          isOuter,
           left: centerX + offset.x,
           top: centerY + offset.y,
           hexUnits: unitsByHex.get(`${q},${r}`) ?? [],
@@ -182,7 +224,13 @@ export function SingleHexView({
             coordsMatch(pendingMoveDestination.hex_coords, cellCoords),
           cellClassName: [
             'hex-grid__cell',
-            isFocus ? 'hex-grid__cell--focus' : 'hex-grid__cell--neighbor',
+            isFocus
+              ? 'hex-grid__cell--focus'
+              : isOuter
+                ? 'hex-grid__cell--outer'
+                : isNeighbor
+                  ? 'hex-grid__cell--neighbor'
+                  : 'hex-grid__cell--neighbor',
             !isFocus && onNeighborClick != null && !moveModeActive && !buildModeActive
               ? 'hex-grid__cell--clickable'
               : '',
@@ -192,7 +240,11 @@ export function SingleHexView({
             .join(' '),
           surfaceHostClassName: [
             'hex-grid__cell-surface-host',
-            isFocus ? 'hex-grid__cell-surface-host--focus' : 'hex-grid__cell-surface-host--neighbor',
+            isFocus
+              ? 'hex-grid__cell-surface-host--focus'
+              : isOuter
+                ? 'hex-grid__cell-surface-host--outer'
+                : 'hex-grid__cell-surface-host--neighbor',
           ]
             .filter(Boolean)
             .join(' '),
@@ -205,6 +257,8 @@ export function SingleHexView({
       radius,
       centerX,
       centerY,
+      neighborCoordKeys,
+      outerNeighborCoordKeys,
       unitsByHex,
       constructionSites,
       moveModeActive,
@@ -289,6 +343,7 @@ export function SingleHexView({
   const viewportClassName = [
     'hex-grid-viewport',
     'hex-grid-viewport--focus',
+    zoomLevel === 2 ? 'hex-grid-viewport--zoom-2' : '',
     moveModeActive ? 'hex-grid-viewport--move-mode' : '',
     buildModeActive ? 'hex-grid-viewport--build-mode' : '',
   ]

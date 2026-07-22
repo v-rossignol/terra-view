@@ -10,7 +10,7 @@ import type { UnitInstance } from '../types/unit';
 import { getErrorMessage } from '../utils/helpers';
 import { isUnauthorizedError } from '../utils/authErrors';
 import { isHexInBounds, parseHexCoord } from '../utils/hexCoords';
-import { findVisualNeighborHexagons } from '../utils/planetGrid';
+import { findVisualNeighborHexagons, findVisualOuterNeighborHexagons } from '../utils/planetGrid';
 import { buildHexResourcesByCoords, type HexResourcesByCoords } from '../utils/unitExtraction';
 
 export type PlanetHexStatus = 'loading' | 'ready' | 'error' | 'unauthorized';
@@ -22,6 +22,7 @@ export interface PlanetHexState {
   coords: HexCoords | null;
   hex: PlanetHexagon | null;
   neighbors: PlanetHexagon[];
+  outerNeighbors: PlanetHexagon[];
   hexResources: PlanetHexResources | null;
   hexResourcesByCoords: HexResourcesByCoords;
   playerId: string | null;
@@ -38,6 +39,7 @@ const emptyState = {
   coords: null as HexCoords | null,
   hex: null as PlanetHexagon | null,
   neighbors: [] as PlanetHexagon[],
+  outerNeighbors: [] as PlanetHexagon[],
   hexResources: null as PlanetHexResources | null,
   hexResourcesByCoords: {} as HexResourcesByCoords,
   playerId: null as string | null,
@@ -90,6 +92,7 @@ export function usePlanetHex(
         coords: { q, r },
         hex: null,
         neighbors: [],
+        outerNeighbors: [],
         hexResources: null,
         hexResourcesByCoords: {},
         playerId: prev.playerId,
@@ -117,6 +120,7 @@ export function usePlanetHex(
             coords: { q, r },
             hex: null,
             neighbors: [],
+            outerNeighbors: [],
             hexResources: null,
         hexResourcesByCoords: {},
             playerId: playerSession?.playerId ?? null,
@@ -140,6 +144,7 @@ export function usePlanetHex(
             coords: { q, r },
             hex: null,
             neighbors: [],
+            outerNeighbors: [],
             hexResources: null,
         hexResourcesByCoords: {},
             playerId: playerSession?.playerId ?? null,
@@ -157,10 +162,16 @@ export function usePlanetHex(
           { q, r },
           planet.radius,
         );
+        const outerNeighbors = findVisualOuterNeighborHexagons(
+          planet.surface?.hexagons,
+          { q, r },
+          planet.radius,
+        );
 
         const resourceCoords = [
           { q, r },
           ...neighbors.map((neighbor) => neighbor.coordinates),
+          ...outerNeighbors.map((neighbor) => neighbor.coordinates),
         ];
         const [hexResourceResults, planetUnits, starSystem, canEnter] = await Promise.all([
           Promise.all(
@@ -188,6 +199,7 @@ export function usePlanetHex(
           coords: { q, r },
           hex,
           neighbors,
+          outerNeighbors,
           hexResources,
           hexResourcesByCoords,
           playerId: playerSession?.playerId ?? null,

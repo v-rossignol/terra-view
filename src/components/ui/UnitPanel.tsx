@@ -6,6 +6,7 @@ import buildingIcon from '../../assets/icons/building.avif';
 import extractionIcon from '../../assets/icons/extraction.avif';
 import garageIcon from '../../assets/icons/garage.avif';
 import moveIcon from '../../assets/icons/move.avif';
+import transformationIcon from '../../assets/icons/transformation.avif';
 import type { UnitInstance, UnitInstanceStatus } from '../../types/unit';
 
 const panelStyle: React.CSSProperties = {
@@ -212,6 +213,17 @@ function formatCapability(key: string, capabilities: UnitCapabilities): string |
     return `Building: ${parts.join('; ')}`;
   }
 
+  if (key === 'transformation') {
+    const transformation = capabilities.transformation;
+
+    if (transformation == null) {
+      return null;
+    }
+
+    const types = transformation.types.join(', ');
+    return `Transformation: speed ${transformation.speed}, types ${types}`;
+  }
+
   if (key === 'garage') {
     const garage = capabilities.garage;
 
@@ -243,7 +255,7 @@ interface CapabilityEntry {
   iconSrc?: string;
 }
 
-const CAPABILITY_ICON_ORDER = ['building', 'extraction', 'garage'] as const;
+const CAPABILITY_ICON_ORDER = ['building', 'extraction', 'transformation', 'garage'] as const;
 
 function getCapabilityIconSrc(key: string): string | undefined {
   if (key === 'building') {
@@ -252,6 +264,10 @@ function getCapabilityIconSrc(key: string): string | undefined {
 
   if (key === 'extraction') {
     return extractionIcon;
+  }
+
+  if (key === 'transformation') {
+    return transformationIcon;
   }
 
   if (key === 'garage') {
